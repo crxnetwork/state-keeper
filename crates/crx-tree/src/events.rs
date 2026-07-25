@@ -1,0 +1,181 @@
+//! Event ABI: topic-0 selectors, per-log decoders, and the Terms identity check.
+//!
+//! The chain records everything a rebuild needs in four places:
+//!   * `TermsOpened(id, Terms)` — the FULL signed Terms of every open, in the log body;
+//!   * the emitting `openLock(t, sigA, sigB)` calldata — the two 65-byte signatures;
+//!   * `applyState(proof, publicValues)` calldata — every fold's decoded public values;
+//!   * `TwapBound(feedId, closeTime, twap, expo)` — every proven settle/mark price.
+//! `MarketSet` carries the pause flags the resolve honors; `RootAdvanced` anchors the
+//! fold sequence this crate replays.
+
+use alloy::primitives::{b256, Address, B256};
+use alloy::rpc::types::Log;
+use alloy::sol;
+use alloy::sol_types::{SolCall, SolEvent};
+use tiny_keccak::{Hasher, Keccak};
+
+pub fn keccak256(parts: &[&[u8]]) -> [u8; 32] {
+    let mut k = Keccak::v256();
+    for p in parts {
+        k.update(p);
+    }
+    let mut out = [0u8; 32];
+    k.finalize(&mut out);
+    out
+}
+
+fn topic0(sig: &str) -> B256 {
+    B256::from(keccak256(&[sig.as_bytes()]))
+}
+
+// ── The open ABI: 16-field Terms, the sole open selector, and TermsOpened ────
+//
+// The trade denominates in USD; `payoutPrefA`/`payoutPrefB` sit after `cureWindow`,
+// `int8 side` is the trailing field (partyA's signed polarity, +1 long / −1 short;
+// partyB mirrors to −side). `expiry` is `uint40` on-chain.
+sol! {
+    struct OpenLockTerms {
+        address partyA;
+        address partyB;
+        address oracle;
+        bytes32 pairTag;
+        uint256 quantity;
+        uint16  imBpsA;
+        uint16  imBpsB;
+        uint16  mmPct;
+        uint40  expiry;
+        uint64  nonce;
+        uint64  cureWindow;
+        uint8   payoutPrefA;
+        uint8   payoutPrefB;
+        bytes   data;
+        uint8   instrument;
+        int8    side;
+    }
+
+    function openLock(OpenLockTerms t, bytes sigA, bytes sigB);
+
+    /// The full signed Terms, emitted once at open so any party rebuilds the book from logs alone.
+    event TermsOpened(bytes32 indexed id, OpenLockTerms terms);
+
+    /// One proven settle/mark price bound to the write-once `boundTwap` rail.
+    event TwapBound(bytes32 indexed feedId, uint64 indexed closeTime, int64 twap, int32 expo);
+
+    /// Market listing / pause state, the resolve's pause authority.
+    event MarketSet(uint8 indexed instrument, bytes32 indexed pairTag, bool enabled, bool paused, uint8 volGroup, uint8 concCat);
+}
+
+/// The 16-field Terms EIP-712 typehash — a MIRROR of the on-chain `Rfq.TYPEHASH`;
+/// asserted by `terms_typehash_matches_the_signature_string` below.
+pub const TERMS_TYPEHASH: B256 =
+    b256!("0x41aa73c5b957e9b7ac0f62e276c3d71b35cfec660f61675e6fb16835e3465fe4");
+
+const TERMS_TYPE_STRING: &str = "Terms(address partyA,address partyB,address oracle,bytes32 pairTag,uint256 quantity,uint16 imBpsA,uint16 imBpsB,uint16 mmPct,uint40 expiry,uint64 nonce,uint64 cureWindow,uint8 payoutPrefA,uint8 payoutPrefB,bytes data,uint8 instrument,int8 side)";
+
+fn addr_word(a: Address) -> [u8; 32] {
+    let mut w = [0u8; 32];
+    w[12..].copy_from_slice(a.as_slice());
+    w
+}
+
+fn u64_word(v: u64) -> [u8; 32] {
+    let mut w = [0u8; 32];
+    w[24..].copy_from_slice(&v.to_be_bytes());
+    w
+}
+
+/// Recompute `Rfq.id(t)` — the EIP-712 struct hash of the 16-field Terms — exactly as
+/// the core (and the guest's `terms_id`) does. The result must equal the `Bound`/
+/// `TermsOpened` id (topic1); a mismatch means the decode is wrong, and the caller refuses.
+pub fn terms_rfq_id(t: &OpenLockTerms) -> [u8; 32] {
+    let mut buf = Vec::with_capacity(17 * 32);
+    buf.extend_from_slice(TERMS_TYPEHASH.as_slice());
+    buf.extend_from_slice(&addr_word(t.partyA));
+    buf.extend_from_slice(&addr_word(t.partyB));
+    buf.extend_from_slice(&addr_word(t.oracle));
+    buf.extend_from_slice(t.pairTag.as_slice());
+    buf.extend_from_slice(&t.quantity.to_be_bytes::<32>());
+    buf.extend_from_slice(&u64_word(u64::from(t.imBpsA)));
+    buf.extend_from_slice(&u64_word(u64::from(t.imBpsB)));
+    buf.extend_from_slice(&u64_word(u64::from(t.mmPct)));
+    buf.extend_from_slice(&u64_word(u64::try_from(t.expiry).unwrap_or(0)));
+    buf.extend_from_slice(&u64_word(t.nonce));
+    buf.extend_from_slice(&u64_word(t.cureWindow));
+    buf.extend_from_slice(&u64_word(u64::from(t.payoutPrefA)));
+    buf.extend_from_slice(&u64_word(u64::from(t.payoutPrefB)));
+    buf.extend_from_slice(&keccak256(&[t.data.as_ref()]));
+    let mut instr_word = [0u8; 32];
+    instr_word[31] = t.instrument;
+    buf.extend_from_slice(&instr_word);
+    // `side` sign-extended to a full word, as `abi.encode(int8)` does.
+    let mut side_word = [if t.side < 0 { 0xff } else { 0x00 }; 32];
+    side_word[31] = t.side as u8;
+    buf.extend_from_slice(&side_word);
+    keccak256(&[&buf])
+}
+
+/// Decode the Terms (plus both sigs) from a DIRECT `openLock` top-level calldata.
+/// `abi_decode` validates the leading selector, so this succeeds ONLY for a genuine
+/// `openLock` — a wrapped open falls back to the (sig-less) `TermsOpened` event.
+pub fn terms_from_open_calldata(calldata: &[u8]) -> Option<(OpenLockTerms, Vec<u8>, Vec<u8>)> {
+    openLockCall::abi_decode(calldata)
+        .ok()
+        .map(|c| (c.t, c.sigA.to_vec(), c.sigB.to_vec()))
+}
+
+/// Decode the Terms from a `TermsOpened` log (no sigs — they live in calldata only).
+pub fn terms_from_opened_log(log: &Log) -> Option<([u8; 32], OpenLockTerms)> {
+    let ev = TermsOpened::decode_log(&log.inner).ok()?;
+    Some((ev.id.0, ev.data.terms))
+}
+
+// ── Topic-0 selectors for the events the rebuild consumes ─────────────────────
+
+pub struct Topics {
+    pub bound: B256,
+    pub terms_opened: B256,
+    pub root_advanced: B256,
+    pub twap_bound: B256,
+    pub market_set: B256,
+}
+
+impl Topics {
+    pub fn new() -> Self {
+        Self {
+            bound: topic0("Bound(bytes32,address,address,uint256)"),
+            terms_opened: TermsOpened::SIGNATURE_HASH,
+            root_advanced: topic0("RootAdvanced(bytes32,bytes32)"),
+            twap_bound: TwapBound::SIGNATURE_HASH,
+            market_set: MarketSet::SIGNATURE_HASH,
+        }
+    }
+
+    pub fn as_filter_topics(&self) -> Vec<B256> {
+        vec![self.bound, self.terms_opened, self.root_advanced, self.twap_bound, self.market_set]
+    }
+}
+
+impl Default for Topics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// The on-chain market registry key: `keccak256(abi.encode(uint8 instrument, bytes32 pairTag))`.
+pub fn market_key(instrument: u8, pair_tag: &[u8; 32]) -> [u8; 32] {
+    let mut buf = [0u8; 64];
+    buf[31] = instrument;
+    buf[32..64].copy_from_slice(pair_tag);
+    keccak256(&[&buf])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The typehash mirror is a transcription; this weld makes it impossible to drift.
+    #[test]
+    fn terms_typehash_matches_the_signature_string() {
+        assert_eq!(TERMS_TYPEHASH, topic0(TERMS_TYPE_STRING));
+    }
+}

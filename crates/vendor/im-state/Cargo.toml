@@ -1,0 +1,14 @@
+[package]
+name = "im-state"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+im-types = { path = "../im-types" }
+im-crypto = { path = "../im-crypto" }
+
+[dev-dependencies]
+proptest = "1"
+
+[lints]
+workspace = true

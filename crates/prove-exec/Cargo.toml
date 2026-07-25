@@ -1,0 +1,16 @@
+# prove-exec — the SP1 surface, isolated. Proves on the Succinct Prover Network
+# (SP1_PROVER=network, the user's own NETWORK_PRIVATE_KEY) or executes the guest
+# on CPU for free. The guest ELF is the VENDORED artifact at elf/scenario-es-program
+# — never rebuilt here; the build script sha-guards the exact bytes.
+#
+# EXACT-pin the sp1 stack to 6.3.0 — the toolchain the on-chain vkey
+# 0x005283d6… was derived under.
+[package]
+name = "prove-exec"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sp1-sdk = { version = "=6.3.0", features = ["blocking", "network"] }
+sp1-prover = "=6.3.0"
+anyhow = "1"

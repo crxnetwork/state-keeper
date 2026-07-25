@@ -1,0 +1,38 @@
+[package]
+name = "im-recompute"
+version = "0.0.0"
+edition = "2021"
+
+# The margin/reconciliation/lifecycle ORCHESTRATOR + the 18-field `PublicValuesStruct` assembly. The TOP
+# library crate, above all five leaves (`im-calibration`, `im-types`, `im-math`, `im-crypto`,
+# `im-state`). It owns `im_full`, `recompute`, the box-binding guards, transfer/novation/failover,
+# the EIP-712/`Terms`/domain hashers, `market_key`/`pair_tag_of`, and `signed_price`. The umbrella crate
+# `crx-im` is a thin `pub use im_recompute::*;` re-export.
+#
+# tiny-keccak/k256 (signed_price.rs) pinned as plain crates.io deps (not git) for reproducible guest builds (the guest patch reaches them graph-wide).
+[dependencies]
+im-calibration = { path = "../im-calibration" }
+im-types = { path = "../im-types" }
+im-math = { path = "../im-math" }
+im-crypto = { path = "../im-crypto" }
+im-state = { path = "../im-state" }
+tiny-keccak = { version = "2.0", features = ["keccak"] }
+serde = { version = "1", features = ["derive"] }
+
+# secp256k1 ECDSA recovery — used in signed_price.rs (model B, signed-price-in-proof).
+# In the zkVM the guest manifest (program/Cargo.toml [patch.crates-io]) replaces this with the
+# SP1-accelerated fork that hooks into syscall_secp256k1_add / _double.
+k256 = { version = "0.13", features = ["ecdsa"] }
+
+[dev-dependencies]
+# sign_prehash_recoverable (the EIP-712/novation/failover signing in the test module) lives in the
+# `hazmat` feature.
+k256 = { version = "0.13", features = ["ecdsa", "ecdsa-core"] }
+
+# Property-based fuzzing for the value-conservation soundness invariant (conservation.rs). Already
+# pinned in the workspace lock (1.11.0) as a transitive dep, so this adds no new resolution.
+proptest = "1"
+
+# Parses the Phase-0c exact-rational oracle vectors (tests/fixtures/phase0c-vectors.json) in the
+# kernel-equivalence integration test. Test-only; never enters the guest.
+serde_json = "1"

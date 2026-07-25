@@ -1,0 +1,35 @@
+{
+  "_comment": "Live lane presets — chain-verified pins for the scenario-ES generation. Reads (root/accountsRoot/scenarioRoot) answer on the LENS; the core answers imVkey()/DOMAIN() and takes applyState. RPC_URL in the environment overrides rpc_url.",
+  "lanes": [
+    {
+      "name": "celo",
+      "chain_id": 11142220,
+      "core": "0xE266F2a44FbDD9Fe716080Ea7514d1794a179c20",
+      "lens": "0xe95AceD8E22ac3dd11030941F5456261fa553698",
+      "deploy_block": 31490784,
+      "vkey": "0x005283d662917901042cc66534ede1c3ee827fb129293f70239d745485d85a8e",
+      "scenario_root": "0x1d18b1716333c13da3f07d701ac91d1c77a544d889ab4845e4bd95d4ceb39cb1",
+      "rpc_url": "https://forno.celo-sepolia.celo-testnet.org"
+    },
+    {
+      "name": "base",
+      "chain_id": 84532,
+      "core": "0x1E9A9596bF82669F5841a9b7cB49e2f7B760E460",
+      "lens": "0xB9c0768CdCE89CAf1171B589305095d8E31077b5",
+      "deploy_block": 44502586,
+      "vkey": "0x005283d662917901042cc66534ede1c3ee827fb129293f70239d745485d85a8e",
+      "scenario_root": "0x1d18b1716333c13da3f07d701ac91d1c77a544d889ab4845e4bd95d4ceb39cb1",
+      "rpc_url": "https://sepolia.base.org"
+    },
+    {
+      "name": "avax",
+      "chain_id": 43113,
+      "core": "0xEb2CE54B589C03fF32cD934dC700E5bF631b7F68",
+      "lens": "0xC18C21Aa554E3b44aE71A89BA03E46f02B5B0F58",
+      "deploy_block": 57209591,
+      "vkey": "0x005283d662917901042cc66534ede1c3ee827fb129293f70239d745485d85a8e",
+      "scenario_root": "0x1d18b1716333c13da3f07d701ac91d1c77a544d889ab4845e4bd95d4ceb39cb1",
+      "rpc_url": "https://api.avax-test.network/ext/bc/C/rpc"
+    }
+  ]
+}

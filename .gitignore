@@ -1,0 +1,6 @@
+/target
+.env
+out/
+out-exec/
+*.log
+.DS_Store

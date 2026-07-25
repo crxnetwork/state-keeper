@@ -1,0 +1,33 @@
+# state-keeper — the one-step keeper CLI.
+#
+#   state-keeper rebuild   replay events → tree → print root, compare to chain. Read-only.
+#   state-keeper advance   build the guest stdin from chain-only inputs, prove on the
+#                          Succinct network, submit applyState. One step, then exit.
+#   state-keeper verify    read the current on-chain roots and pins.
+[package]
+name = "state-keeper"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[[bin]]
+name = "state-keeper"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+crx-tree = { path = "../crx-tree" }
+prove-exec = { path = "../prove-exec" }
+im-types = { path = "../vendor/im-types" }
+im-recompute = { path = "../vendor/im-recompute" }
+im-state = { path = "../vendor/im-state" }
+alloy = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

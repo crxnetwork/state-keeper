@@ -1,0 +1,14 @@
+[package]
+name = "im-math"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+im-calibration = { path = "../im-calibration" }
+im-types = { path = "../im-types" }
+
+[dev-dependencies]
+proptest = "1"
+
+[lints]
+workspace = true

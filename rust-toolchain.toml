@@ -1,0 +1,6 @@
+# Pin the toolchain this repo is built and proven against. Pinning removes the
+# drift where a newer stable changes a lint or an edition default mid-audit.
+[toolchain]
+channel = "1.96.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

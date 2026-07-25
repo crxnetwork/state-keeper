@@ -1,0 +1,31 @@
+# crx-tree — rebuild the CRX state tree purely from on-chain events.
+#
+# No backend, no database, no operator feed: an RPC URL in, the tree out. Each
+# historical `applyState` is replayed through the SAME vendored engine the proven
+# guest runs, seeded only by what the chain itself recorded — the open Terms
+# (TermsOpened + openLock calldata), the fold's public values (applyState
+# calldata), and the bound settle/mark prices (TwapBound). The recomputed root is
+# diffed against the on-chain `root()`.
+[package]
+name = "crx-tree"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lints]
+workspace = true
+
+[dependencies]
+im-types = { path = "../vendor/im-types" }
+im-crypto = { path = "../vendor/im-crypto" }
+im-state = { path = "../vendor/im-state" }
+im-recompute = { path = "../vendor/im-recompute" }
+alloy = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
+tiny-keccak = { workspace = true }
+anyhow = { workspace = true }
+bincode = { workspace = true }
+tracing = { workspace = true }

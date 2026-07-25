@@ -1,0 +1,16 @@
+[package]
+name = "im-types"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+im-calibration = { path = "../im-calibration" }
+
+[dev-dependencies]
+serde_json = "1"
+proptest = "1"
+bincode = "1"
+
+[lints]
+workspace = true

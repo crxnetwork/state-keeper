@@ -1,0 +1,41 @@
+# crxnetwork/state-keeper — the public one-step keeper.
+#
+# Rebuild the CRX state tree from on-chain events alone, advance it one epoch with an
+# SP1 proof, verify the result. One step per invocation; no loop, no supervisor.
+#
+# The `crates/vendor/im-*` crates are the vendored guest engine — the SAME pure
+# functions the proven guest ELF runs (scenario-ES generation). They are vendored,
+# never edited: one implementation, zero drift.
+[workspace]
+members = [
+    "crates/crx-tree",
+    "crates/state-keeper",
+    "crates/prove-exec",
+    "crates/vendor/im-calibration",
+    "crates/vendor/im-math",
+    "crates/vendor/im-types",
+    "crates/vendor/im-crypto",
+    "crates/vendor/im-state",
+    "crates/vendor/im-recompute",
+]
+resolver = "2"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+alloy = { version = "1", features = ["full", "json-rpc"] }
+hex = "0.4"
+tiny-keccak = { version = "2", features = ["keccak"] }
+anyhow = "1"
+bincode = "1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "deny"
+todo = "deny"
