@@ -8,28 +8,26 @@ use alloy::sol_types::SolValue;
 use im_types as st;
 
 sol! {
-    /// The single USD tree's root advance.
     struct RootsSol {
         bytes32 rootPrev;
         bytes32 rootNew;
         bytes32 accountsRootPrev;
         bytes32 accountsRootNew;
     }
-    /// One under-margin claim — the guest names it, the on-chain grace gate decides.
+    /// Under-margin claim — the guest names it, the on-chain grace gate decides.
     struct DefaultSol {
         bytes32 id;
         address accountOwner;
         address counterparty;
         uint128 usd;
     }
-    /// One consumed settle price, asserted == `boundTwap[feedId][closeTime]`.
+    /// Consumed settle price, asserted == `boundTwap[feedId][closeTime]`.
     struct ConsumedTwapSol {
         bytes32 feedId;
         uint64  closeTime;
         int256  twap;
         int32   expo;
     }
-    /// One novation, USD-denominated.
     struct NovationSol {
         bytes32 oldId;
         bytes32 newId;
@@ -43,7 +41,6 @@ sol! {
         uint64  nonce;
         uint64  deadline;
     }
-    /// One default-closeout A→C handoff, USD-denominated.
     struct CloseoutNovationSol {
         bytes32 oldId;
         bytes32 newId;
@@ -61,32 +58,30 @@ sol! {
         bytes32 domainSeparator;
         uint128 mAAuthorized;
     }
-    /// One due position skipped on pause grounds.
     struct PausedHoldSol {
         bytes32 marketKey;
         bytes32 positionId;
     }
-    /// One consumed hourly mark, asserted == `boundTwap[feedId][markTime]`.
+    /// Consumed hourly mark, asserted == `boundTwap[feedId][markTime]`.
     struct ConsumedMarkSol {
         bytes32 feedId;
         uint64  markTime;
         int256  price;
         int32   expo;
     }
-    /// One per touched netting set. `applyState` writes `imRequired[acct][cp] = usd`.
+    /// `applyState` writes `imRequired[acct][cp] = usd`.
     struct ImRequirementSol {
         address acct;
         address cp;
         uint256 usd;
     }
-    /// One netted cash obligation due this fold; `applyState` pays it from the till.
+    /// Netted cash obligation; `applyState` pays it from the till.
     struct SettlementSol {
         address payer;
         address payee;
         uint256 usd;
         bytes32 id;
     }
-    /// One bilateral unwind.
     struct UnwindSol {
         bytes32 oldId;
         address partyA;
@@ -95,8 +90,7 @@ sol! {
         uint64  nonce;
         uint64  deadline;
     }
-    /// The FINAL 15-row public values (the guest commits `pv.abi_encode()`). Field
-    /// order is VKEY-AFFECTING.
+    /// The guest commits `pv.abi_encode()` of this. Field order is VKEY-AFFECTING.
     struct PublicValuesStruct {
         RootsSol roots;                          // 1
         DefaultSol[] defaults;                   // 2
@@ -122,7 +116,6 @@ pub struct DecodedPv {
     pub roots: st::Roots,
     pub consumed_twaps: Vec<st::ConsumedTwap>,
     pub novations: Vec<st::Novation>,
-    pub events_commitment: [u8; 32],
     pub proof_time: u64,
     pub domain_separator: [u8; 32],
     pub scenario_root: [u8; 32],
@@ -131,8 +124,6 @@ pub struct DecodedPv {
     /// Rows this replay does not model yet — non-empty fails loudly, never drifts.
     pub closeout_novations_len: usize,
     pub unwinds_len: usize,
-    pub defaults_len: usize,
-    pub paused_holds: Vec<st::PausedHold>,
 }
 
 /// Decode the 15-row `PublicValuesStruct` the guest committed.
@@ -191,17 +182,10 @@ pub fn decode_public_values(public_values: &[u8]) -> Result<DecodedPv> {
         })
         .collect();
 
-    let paused_holds = pv
-        .pausedHolds
-        .iter()
-        .map(|h| st::PausedHold { market_key: h.marketKey.0, position_id: h.positionId.0 })
-        .collect();
-
     Ok(DecodedPv {
         roots,
         consumed_twaps,
         novations,
-        events_commitment: pv.eventsCommitment.0,
         proof_time: pv.proofTime,
         domain_separator: pv.domainSeparator.0,
         scenario_root: pv.scenarioRoot.0,
@@ -209,7 +193,5 @@ pub fn decode_public_values(public_values: &[u8]) -> Result<DecodedPv> {
         opened_position_ids: pv.openedPositionIds.iter().map(|b| b.0).collect(),
         closeout_novations_len: pv.closeoutNovations.len(),
         unwinds_len: pv.unwinds.len(),
-        defaults_len: pv.defaults.len(),
-        paused_holds,
     })
 }

@@ -2437,15 +2437,11 @@ dependencies = [
  "anyhow",
  "bincode",
  "hex",
- "im-crypto",
  "im-recompute",
  "im-state",
  "im-types",
  "serde",
- "serde_json",
  "tiny-keccak",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -7353,7 +7349,6 @@ dependencies = [
  "crx-tree",
  "hex",
  "im-recompute",
- "im-state",
  "im-types",
  "prove-exec",
  "serde",

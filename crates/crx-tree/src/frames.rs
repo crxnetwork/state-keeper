@@ -80,28 +80,20 @@ pub fn build_advance_frames(
     let predicted_accounts_root = registry.root();
     let book: st::TouchedBook = (root_prev, chain_accounts_root, touched_accounts);
 
-    let marks: Vec<st::Mark> = Vec::new();
-    let novations: Vec<st::Novation> = Vec::new();
-    let novation_witnesses: Vec<st::NovationWitness> = Vec::new();
-    let closeout_novations: Vec<st::CloseoutNovation> = Vec::new();
-    let closeout_witnesses: Vec<st::CloseoutNovationWitness> = Vec::new();
-    let unwinds: Vec<st::Unwind> = Vec::new();
-    let unwind_witnesses: Vec<st::UnwindWitness> = Vec::new();
-
     let frames = vec![
         enc(&book)?,
-        enc(&marks)?,
+        enc(&Vec::<st::Mark>::new())?,
         enc(&inputs.paused_pairs)?,
-        enc(&novations)?,
+        enc(&Vec::<st::Novation>::new())?,
         enc(&inputs.new_positions)?,
-        enc(&novation_witnesses)?,
-        enc(&closeout_novations)?,
-        enc(&closeout_witnesses)?,
+        enc(&Vec::<st::NovationWitness>::new())?,
+        enc(&Vec::<st::CloseoutNovation>::new())?,
+        enc(&Vec::<st::CloseoutNovationWitness>::new())?,
         enc(&inputs.proof_now)?,
         enc(&inputs.domain_separator)?,
         enc(table)?,
-        enc(&unwinds)?,
-        enc(&unwind_witnesses)?,
+        enc(&Vec::<st::Unwind>::new())?,
+        enc(&Vec::<st::UnwindWitness>::new())?,
     ];
 
     Ok(AdvanceFrames { frames, predicted_root, predicted_accounts_root, root_prev })

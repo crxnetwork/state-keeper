@@ -1,7 +1,5 @@
-//! The replay: fold the chain's own history through the vendored engine, epoch by
-//! epoch. Every fold's inputs are recoverable from its committed public values; fed
-//! the same inputs, the same pure functions produce the same tree — and the recomputed
-//! roots are asserted against each fold's committed roots at every step.
+//! The replay: fold the chain's own history through the vendored engine, asserting the
+//! recomputed roots against each fold's committed roots at every step.
 
 use std::collections::BTreeMap;
 
@@ -26,7 +24,7 @@ pub struct TreeState {
 }
 
 impl TreeState {
-    /// The committed leaves, ascending by aid.
+    /// Committed leaves, ascending by aid.
     pub fn leaves(&self) -> Vec<([u8; 32], [u8; 32])> {
         self.accounts
             .iter()
@@ -36,12 +34,10 @@ impl TreeState {
             .collect()
     }
 
-    /// The state root — the smt2 fold of the committed leaves.
     pub fn root(&self) -> [u8; 32] {
         im_state::smt2::Smt2::from_leaves(&self.leaves()).root()
     }
 
-    /// The account-registry root over the present key set.
     pub fn accounts_root(&self) -> [u8; 32] {
         let keys: Vec<[u8; 32]> = self.accounts.keys().copied().collect();
         im_state::credited_deposit_registry(&keys)
@@ -89,16 +85,14 @@ pub fn open_to_new_position(o: &OpenRecord, domain_separator: [u8; 32]) -> Resul
 /// One epoch's inputs — a historical fold's recovered inputs, or the next epoch's fresh ones.
 pub struct EpochInputs {
     pub new_positions: Vec<st::NewPosition>,
-    /// Proven hourly marks this epoch consumes (deduped, one per feed).
+    /// Deduped, one per feed.
     pub proven_marks: Vec<st::ProvenMark>,
-    /// Proven settle prices this epoch consumes.
     pub proven_twaps: Vec<st::ProvenTwap>,
     pub paused_pairs: Vec<[u8; 32]>,
     pub proof_now: u64,
     pub domain_separator: [u8; 32],
 }
 
-/// One resolved epoch: the post state plus the rows the frame builder reuses.
 pub struct EpochOutcome {
     pub post: TreeState,
     /// Touched aids ascending, with each post leaf (`None` = pruned/never present).
@@ -109,9 +103,9 @@ pub struct EpochOutcome {
     pub processed_open_ids: Vec<[u8; 32]>,
 }
 
-/// Resolve one epoch — the same Stage-3 pipeline the guest runs: openLock pre-pass,
-/// then per-account settle/re-mark/resolve. Touches every present account plus every
-/// open party; an extra touch whose leaf ends unchanged is harmless (the guest's rule).
+/// Resolve one epoch — the guest's own Stage-3 pipeline: openLock pre-pass, then per-account
+/// resolve. Touches every present account plus every open party; an extra unchanged touch is
+/// harmless (the guest's rule).
 pub fn resolve_epoch(
     prior: &TreeState,
     inputs: &EpochInputs,
@@ -131,7 +125,6 @@ pub fn resolve_epoch(
     }
     let touched: Vec<[u8; 32]> = touched.into_iter().collect();
 
-    // Prior rows in touched order: leaf fields + the per-account risk witness.
     let mut rows: Vec<(st::Account, st::RiskInputs)> = Vec::with_capacity(touched.len());
     for aid in &touched {
         let (account, risk) = match prior.accounts.get(aid) {
@@ -247,7 +240,7 @@ pub fn resolve_epoch(
     Ok(EpochOutcome { post, steps, prior_rows, processed_open_ids: processed })
 }
 
-/// Rebuild from empty, replaying every fold and asserting its committed roots.
+/// Rebuild from empty, asserting every fold's committed roots.
 pub fn rebuild(history: &ChainHistory, table: &sr::ScenarioTable) -> Result<TreeState> {
     let mut state = TreeState::default();
     let opens_by_id: BTreeMap<[u8; 32], &OpenRecord> =

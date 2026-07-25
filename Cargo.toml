@@ -1,11 +1,5 @@
-# crxnetwork/state-keeper — the public one-step keeper.
-#
-# Rebuild the CRX state tree from on-chain events alone, advance it one epoch with an
-# SP1 proof, verify the result. One step per invocation; no loop, no supervisor.
-#
-# The `crates/vendor/im-*` crates are the vendored guest engine — the SAME pure
-# functions the proven guest ELF runs (scenario-ES generation). They are vendored,
-# never edited: one implementation, zero drift.
+# state-keeper workspace. `crates/vendor/im-*` is the vendored guest engine — the SAME
+# pure functions the proven ELF runs; never edited here.
 [workspace]
 members = [
     "crates/crx-tree",

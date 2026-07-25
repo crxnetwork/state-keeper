@@ -1,9 +1,5 @@
-//! state-keeper — the public one-step keeper. Three verbs, one step per invocation,
-//! no loop: `rebuild` (replay events, diff the root; read-only), `advance` (build one
-//! epoch, prove on the Succinct Prover Network with YOUR key, submit `applyState`,
-//! rebasing if the root moves mid-flight), `verify` (check the committed artifacts
-//! against the on-chain pins). Config: `.env` (RPC_URL, PRIVATE_KEY,
-//! NETWORK_PRIVATE_KEY) + `chains.json`; secrets arrive ONLY via the environment.
+//! state-keeper — the public one-step keeper: `rebuild` / `advance` / `verify`, one step per
+//! invocation, no loop. Secrets arrive ONLY via the environment (`.env` + `chains.json`).
 
 mod chain;
 mod submit;
@@ -172,8 +168,7 @@ async fn cmd_verify(chain_name: &str) -> Result<()> {
     Ok(())
 }
 
-/// The next epoch's chain-only inputs: unfolded opens, fresh bound marks, due settle
-/// prices, the current pause set.
+/// The next epoch's chain-only inputs: unfolded opens, fresh bound marks, due settle prices, the pause set.
 fn fresh_epoch_inputs(
     history: &ChainHistory,
     state: &TreeState,

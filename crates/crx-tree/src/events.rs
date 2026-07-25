@@ -1,7 +1,4 @@
-//! Event ABI: topic-0 selectors, per-log decoders, the Terms identity check. The
-//! rebuild's sources: `TermsOpened` (full signed Terms), `openLock` calldata (both
-//! 65-byte sigs), `applyState` calldata (fold public values), `TwapBound` (proven
-//! prices), `MarketSet` (pause flags), `RootAdvanced` (the fold sequence).
+//! Event ABI: topic-0 selectors, per-log decoders, the Terms identity check.
 
 use alloy::primitives::{b256, Address, B256};
 use alloy::rpc::types::Log;
@@ -23,8 +20,7 @@ fn topic0(sig: &str) -> B256 {
     B256::from(keccak256(&[sig.as_bytes()]))
 }
 
-// The open ABI: 16-field USD-denominated Terms. Field order matters — `int8 side`
-// trails (partyA's polarity, +1 long / −1 short; partyB mirrors); `expiry` is uint40.
+// 16-field Terms; field order is hash-affecting. `side` = partyA polarity (+1/−1), `expiry` uint40.
 sol! {
     struct OpenLockTerms {
         address partyA;
@@ -46,14 +42,8 @@ sol! {
     }
 
     function openLock(OpenLockTerms t, bytes sigA, bytes sigB);
-
-    /// Full signed Terms, emitted once at open — the book rebuilds from logs alone.
     event TermsOpened(bytes32 indexed id, OpenLockTerms terms);
-
-    /// One proven price on the write-once `boundTwap` rail.
     event TwapBound(bytes32 indexed feedId, uint64 indexed closeTime, int64 twap, int32 expo);
-
-    /// Market listing / pause state — the resolve's pause authority.
     event MarketSet(uint8 indexed instrument, bytes32 indexed pairTag, bool enabled, bool paused, uint8 volGroup, uint8 concCat);
 }
 
@@ -76,8 +66,7 @@ fn u64_word(v: u64) -> [u8; 32] {
     w
 }
 
-/// Recompute `Rfq.id(t)` — the EIP-712 struct hash — exactly as the core does. Must
-/// equal the `TermsOpened` id; on mismatch the caller refuses.
+/// Recompute `Rfq.id(t)` — the EIP-712 struct hash. Must equal the `TermsOpened` id or the caller refuses.
 pub fn terms_rfq_id(t: &OpenLockTerms) -> [u8; 32] {
     let mut buf = Vec::with_capacity(17 * 32);
     buf.extend_from_slice(TERMS_TYPEHASH.as_slice());
@@ -105,21 +94,18 @@ pub fn terms_rfq_id(t: &OpenLockTerms) -> [u8; 32] {
     keccak256(&[&buf])
 }
 
-/// Decode Terms + both sigs from top-level `openLock` calldata. The selector is
-/// validated, so this succeeds ONLY for a genuine direct `openLock`.
+/// Decode Terms + both sigs from `openLock` calldata; the selector check makes this succeed only for a genuine `openLock`.
 pub fn terms_from_open_calldata(calldata: &[u8]) -> Option<(OpenLockTerms, Vec<u8>, Vec<u8>)> {
     openLockCall::abi_decode(calldata)
         .ok()
         .map(|c| (c.t, c.sigA.to_vec(), c.sigB.to_vec()))
 }
 
-/// Decode Terms from a `TermsOpened` log (sigs live in calldata only).
 pub fn terms_from_opened_log(log: &Log) -> Option<([u8; 32], OpenLockTerms)> {
     let ev = TermsOpened::decode_log(&log.inner).ok()?;
     Some((ev.id.0, ev.data.terms))
 }
 
-/// Topic-0 selectors of the events the rebuild consumes.
 pub struct Topics {
     pub bound: B256,
     pub terms_opened: B256,
@@ -142,20 +128,6 @@ impl Topics {
     pub fn as_filter_topics(&self) -> Vec<B256> {
         vec![self.bound, self.terms_opened, self.root_advanced, self.twap_bound, self.market_set]
     }
-}
-
-impl Default for Topics {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// On-chain market registry key: `keccak256(abi.encode(uint8 instrument, bytes32 pairTag))`.
-pub fn market_key(instrument: u8, pair_tag: &[u8; 32]) -> [u8; 32] {
-    let mut buf = [0u8; 64];
-    buf[31] = instrument;
-    buf[32..64].copy_from_slice(pair_tag);
-    keccak256(&[&buf])
 }
 
 #[cfg(test)]

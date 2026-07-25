@@ -17,13 +17,6 @@ fn stdin_from_frames(frames: &[Vec<u8>]) -> SP1Stdin {
     stdin
 }
 
-/// The vkey of the embedded ELF, as the chain's bytes32 hex string.
-pub fn embedded_vkey() -> anyhow::Result<String> {
-    let client = ProverClient::builder().cpu().build();
-    let pk = client.setup(ELF).map_err(|e| anyhow::anyhow!("setup: {e}"))?;
-    Ok(pk.verifying_key().bytes32())
-}
-
 /// Free CPU execute — returns the committed public values, byte-identical to what a
 /// prove would commit, so the caller decides before any fee.
 pub fn execute(frames: &[Vec<u8>]) -> anyhow::Result<Vec<u8>> {

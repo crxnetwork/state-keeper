@@ -27,13 +27,10 @@ fn is_already_known(msg: &str) -> bool {
         || l.contains("transaction already in pool")
 }
 
-fn stale_root_selector_hex() -> String {
-    hex::encode(&crx_tree::events::keccak256(&[b"StaleRoot()"])[..4])
-}
-
 fn is_stale_root_revert(msg: &str) -> bool {
+    let selector = hex::encode(&crx_tree::events::keccak256(&[b"StaleRoot()"])[..4]);
     let lower = msg.to_ascii_lowercase();
-    lower.contains("staleroot") || lower.contains(&stale_root_selector_hex())
+    lower.contains("staleroot") || lower.contains(&selector)
 }
 
 /// Sign and broadcast one `applyState`. Returns `StaleRoot` when the CAS target moved.
@@ -47,7 +44,8 @@ pub async fn submit_apply_state(
     let signer = PrivateKeySigner::from_str(signer_key.trim_start_matches("0x"))
         .map_err(|e| anyhow!("bad PRIVATE_KEY: {e}"))?;
     let wallet = EthereumWallet::from(signer);
-    let url: reqwest_url::Url = rpc_url.parse().map_err(|e| anyhow!("bad RPC url: {e}"))?;
+    let url: alloy::transports::http::reqwest::Url =
+        rpc_url.parse().map_err(|e| anyhow!("bad RPC url: {e}"))?;
     let provider = ProviderBuilder::new().wallet(wallet).connect_http(url);
 
     let contract = ICrxCore::new(core_addr, &provider);
@@ -87,9 +85,4 @@ pub async fn submit_apply_state(
         ));
     }
     Ok(SubmitOutcome::Mined(format!("{tx_hash:#x}")))
-}
-
-// alloy's re-exported `Url`, named locally.
-mod reqwest_url {
-    pub use alloy::transports::http::reqwest::Url;
 }

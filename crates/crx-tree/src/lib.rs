@@ -1,7 +1,5 @@
-//! crx-tree — rebuild the CRX state tree purely from on-chain events and assemble the
-//! next epoch's guest input. One leaf per account (`account_id_single(owner)`),
-//! committing `{aid, vm_equity, positions_root}`; replaying the chain's own inputs
-//! through the vendored engine reproduces the exact root the contract holds.
+//! crx-tree — rebuild the CRX state tree purely from on-chain events and assemble the next
+//! epoch's guest input. One leaf per account: `{aid, vm_equity, positions_root}`.
 
 pub mod events;
 pub mod frames;
@@ -14,8 +12,8 @@ pub use im_types as guest_types;
 
 use anyhow::Result;
 
-/// Load the committed scenario-table artifact and its keccak commitment — which must
-/// equal the on-chain `scenarioRoot`, or no proof built on it can be accepted.
+/// Load the committed scenario-table artifact and its keccak commitment — must equal the
+/// on-chain `scenarioRoot` or no proof built on it can be accepted.
 pub fn load_scenario_table(path: &std::path::Path) -> Result<(im_recompute::ScenarioTable, [u8; 32])> {
     let bytes = std::fs::read(path)
         .map_err(|e| anyhow::anyhow!("read scenario table {}: {e}", path.display()))?;

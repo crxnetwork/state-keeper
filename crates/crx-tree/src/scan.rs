@@ -1,6 +1,5 @@
-//! Chain scan: fetch every load-bearing event from `deploy_block` to head, enriching
-//! `RootAdvanced` with its `applyState` calldata and `TermsOpened` with the emitting
-//! `openLock` calldata (the two signatures the guest recovers).
+//! Chain scan: every load-bearing event from `deploy_block` to head, enriched with the
+//! `applyState` and `openLock` calldata.
 
 use alloy::consensus::Transaction as _;
 use alloy::eips::BlockNumberOrTag;
@@ -18,8 +17,7 @@ sol! {
     function applyState(bytes proof, bytes publicValues);
 }
 
-/// One open: signed Terms (event body) plus both sigs (calldata). `id` is re-derived
-/// and asserted equal to the event's — the decode authenticates itself.
+/// One open. `id` is re-derived and asserted equal to the event's — the decode authenticates itself.
 #[derive(Clone)]
 pub struct OpenRecord {
     pub id: [u8; 32],
@@ -29,7 +27,6 @@ pub struct OpenRecord {
     pub block: u64,
 }
 
-/// One fold: decoded public values of a mined `applyState`.
 #[derive(Clone)]
 pub struct FoldRecord {
     pub block: u64,
@@ -37,7 +34,6 @@ pub struct FoldRecord {
     pub pv: DecodedPv,
 }
 
-/// One proven price on the write-once rail.
 #[derive(Clone, Copy)]
 pub struct TwapBoundRecord {
     pub feed_id: [u8; 32],
@@ -47,7 +43,6 @@ pub struct TwapBoundRecord {
     pub block: u64,
 }
 
-/// One market listing / pause flip.
 #[derive(Clone, Copy)]
 pub struct MarketSetRecord {
     pub block: u64,
@@ -78,17 +73,13 @@ impl ChainHistory {
         state.into_iter().filter_map(|(tag, paused)| paused.then_some(tag)).collect()
     }
 
-    /// Open ids already consumed by a fold (`openedPositionIds`).
-    pub fn folded_open_ids(&self) -> std::collections::BTreeSet<[u8; 32]> {
-        self.folds
-            .iter()
-            .flat_map(|f| f.pv.opened_position_ids.iter().copied())
-            .collect()
-    }
-
     /// Opens no fold has consumed yet — the next epoch's `new_positions`.
     pub fn unfolded_opens(&self) -> Vec<&OpenRecord> {
-        let folded = self.folded_open_ids();
+        let folded: std::collections::BTreeSet<[u8; 32]> = self
+            .folds
+            .iter()
+            .flat_map(|f| f.pv.opened_position_ids.iter().copied())
+            .collect();
         self.opens.iter().filter(|o| !folded.contains(&o.id)).collect()
     }
 }
@@ -96,7 +87,6 @@ impl ChainHistory {
 /// Max block span per `eth_getLogs` (public endpoints commonly cap at 100k).
 const LOG_CHUNK: u64 = 90_000;
 
-/// Scan the core's logs and enrich them into a `ChainHistory`.
 pub async fn scan<P: Provider>(provider: &P, core: Address, deploy_block: u64) -> Result<ChainHistory> {
     let head = provider.get_block_number().await.context("get_block_number")?;
     let topics = Topics::new();
