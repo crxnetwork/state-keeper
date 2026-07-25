@@ -1,11 +1,6 @@
-//! Golden-root parity over RECORDED events — the rebuild, offline.
-//!
-//! The fixtures are verbatim Celo Sepolia calldata: the two `openLock` transactions
-//! and the two `applyState` folds that carried the live core from the empty tree to
-//! `0x5ea8085a…`. Replaying them through `crx_tree::replay::rebuild` must reproduce
-//! each fold's committed roots exactly — the same check `state-keeper rebuild` runs
-//! against the live chain, frozen here so it needs no RPC.
-//!
+//! Golden-root parity over RECORDED events — the rebuild, offline, no RPC. Fixtures
+//! are verbatim Celo Sepolia calldata: two `openLock` txs and two `applyState` folds
+//! carrying the live core from empty to `0x5ea8085a…`.
 //!   fold 1  (block 31495775, tx 0xc7dddf95…): 0x00000000… → 0x9f437e02…
 //!   fold 2  (block 31663509, tx 0x1b1707a8…): 0x9f437e02… → 0x5ea8085a…
 
@@ -64,15 +59,13 @@ fn recorded_celo_events_rebuild_to_the_committed_roots() {
     )))
     .expect("committed scenario table loads and validates");
 
-    // The committed table is the one every recorded fold margined against.
     assert_eq!(
         hex::encode(table_root),
         "1d18b1716333c13da3f07d701ac91d1c77a544d889ab4845e4bd95d4ceb39cb1",
         "scenario-table artifact commits the owner-published root"
     );
 
-    // `rebuild` itself asserts, fold by fold, that the replayed roots equal each
-    // fold's committed rootPrev/rootNew/accountsRoot — a drift panics the test.
+    // `rebuild` asserts every fold's committed roots itself — a drift panics here.
     let state = rebuild(&history, &table).expect("replay reproduces every committed root");
 
     assert_eq!(state.accounts.len(), 3, "three accounts hold positions after fold 2");

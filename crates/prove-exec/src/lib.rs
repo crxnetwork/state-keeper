@@ -1,7 +1,5 @@
-//! The SP1 surface: network Groth16 prove + free CPU execute of the vendored guest ELF.
-//!
-//! The ELF is the proven artifact (`elf/scenario-es-program`, sha256 `6068e927…ccaa`,
-//! vkey `0x005283d6…5a8e`) baked in at compile time; `build.rs` refuses any drifted bytes.
+//! SP1 surface: network Groth16 prove + free CPU execute of the vendored guest ELF
+//! (sha256 `6068e927…ccaa`, vkey `0x005283d6…5a8e`; build.rs refuses drifted bytes).
 
 use sp1_sdk::{
     blocking::{ProveRequest, Prover, ProverClient},
@@ -26,9 +24,8 @@ pub fn embedded_vkey() -> anyhow::Result<String> {
     Ok(pk.verifying_key().bytes32())
 }
 
-/// FREE CPU execute — runs the identical guest on the identical stdin and returns the
-/// committed public values. `root_new` here is byte-identical to what a prove would
-/// commit, so the caller can decide whether proving is worth a fee.
+/// Free CPU execute — returns the committed public values, byte-identical to what a
+/// prove would commit, so the caller decides before any fee.
 pub fn execute(frames: &[Vec<u8>]) -> anyhow::Result<Vec<u8>> {
     let client = ProverClient::builder().cpu().build();
     let (public_values, _report) = client
@@ -39,11 +36,9 @@ pub fn execute(frames: &[Vec<u8>]) -> anyhow::Result<Vec<u8>> {
     Ok(public_values.as_slice().to_vec())
 }
 
-/// Groth16 prove on the Succinct Prover Network — the ONLY prover this binary knows.
-/// There is no local proving path: `mock`, `cpu`, `cuda`, or any other `SP1_PROVER`
-/// value is refused outright. Requires `NETWORK_PRIVATE_KEY` (a funded requester key).
-/// Returns `(proof_bytes, public_values)` — exactly the two `bytes` arguments
-/// `applyState` takes.
+/// Groth16 prove on the Succinct Prover Network — the ONLY prover; any other
+/// `SP1_PROVER` is refused. Needs a funded `NETWORK_PRIVATE_KEY`. Returns
+/// `(proof_bytes, public_values)`, the two `applyState` arguments.
 pub fn prove_network(frames: &[Vec<u8>]) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
     if let Ok(mode) = std::env::var("SP1_PROVER") {
         if mode != "network" {
@@ -75,7 +70,7 @@ pub fn prove_network(frames: &[Vec<u8>]) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
     let proof_bytes = proof.bytes();
     let public_values = proof.public_values.as_slice().to_vec();
 
-    // Best-effort local verify — the on-chain SP1 verifier is the authoritative gate.
+    // Best-effort; the on-chain SP1 verifier is the authoritative gate.
     match client.verify(&proof, vk, None) {
         Ok(()) => eprintln!("local verify: OK"),
         Err(e) => eprintln!("local verify: NON-FATAL failure ({e})"),

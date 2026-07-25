@@ -1,12 +1,7 @@
-//! The replay: fold the chain's own history through the vendored engine and carry the
-//! account state forward, epoch by epoch.
-//!
-//! Each historical fold's inputs are fully recoverable: `openedPositionIds` names the
-//! opens it consumed, `consumedMarks`/`consumedTwaps` name the prices, `proofTime` and
-//! `domainSeparator` pin the clock and the domain, and the scenario table is the
-//! committed artifact whose keccak the fold's `scenarioRoot` re-asserts. Fed the same
-//! inputs, the same pure functions produce the same tree — and the recomputed
-//! `root_new` is asserted against the fold's own committed roots at every step.
+//! The replay: fold the chain's own history through the vendored engine, epoch by
+//! epoch. Every fold's inputs are recoverable from its committed public values; fed
+//! the same inputs, the same pure functions produce the same tree — and the recomputed
+//! roots are asserted against each fold's committed roots at every step.
 
 use std::collections::BTreeMap;
 
@@ -16,8 +11,7 @@ use im_types as st;
 
 use crate::scan::{ChainHistory, FoldRecord, OpenRecord};
 
-/// One account's carried state — exactly what the committed leaf binds:
-/// the cumulative VM and the open position set.
+/// One account's carried state — exactly what the committed leaf binds.
 #[derive(Clone, Default)]
 pub struct AccountState {
     pub owner: [u8; 20],
@@ -25,7 +19,7 @@ pub struct AccountState {
     pub positions: Vec<st::PositionRecord>,
 }
 
-/// The rebuilt tree: every account keyed by `account_id_single(owner)`.
+/// The rebuilt tree, keyed by `account_id_single(owner)`.
 #[derive(Clone, Default)]
 pub struct TreeState {
     pub accounts: BTreeMap<[u8; 32], AccountState>,
@@ -54,9 +48,9 @@ impl TreeState {
     }
 }
 
-/// Map a chain-recovered open onto the guest's `NewPosition` input. The entry rate is
-/// the signed `Terms.data` word 0 (the on-chain 1e6-scaled rate); the domain separator
-/// is stamped by the caller (the guest asserts it equals the proof's pinned domain).
+/// Map a chain-recovered open onto the guest's `NewPosition`. The entry rate is the
+/// signed `Terms.data` word 0 (1e6-scaled); the caller stamps the domain separator
+/// (the guest asserts it equals the proof's pinned domain).
 pub fn open_to_new_position(o: &OpenRecord, domain_separator: [u8; 32]) -> Result<st::NewPosition> {
     let t = &o.terms;
     let quantity = u128::try_from(t.quantity).map_err(|_| anyhow!("quantity exceeds u128"))?;
@@ -92,34 +86,32 @@ pub fn open_to_new_position(o: &OpenRecord, domain_separator: [u8; 32]) -> Resul
     })
 }
 
-/// The inputs of one epoch, however sourced — a historical fold's recovered inputs, or
-/// the next epoch's fresh ones.
+/// One epoch's inputs — a historical fold's recovered inputs, or the next epoch's fresh ones.
 pub struct EpochInputs {
     pub new_positions: Vec<st::NewPosition>,
-    /// Per-feed proven hourly marks this epoch consumes (deduped, one per feed).
+    /// Proven hourly marks this epoch consumes (deduped, one per feed).
     pub proven_marks: Vec<st::ProvenMark>,
-    /// Per-feed proven settle prices this epoch consumes.
+    /// Proven settle prices this epoch consumes.
     pub proven_twaps: Vec<st::ProvenTwap>,
     pub paused_pairs: Vec<[u8; 32]>,
     pub proof_now: u64,
     pub domain_separator: [u8; 32],
 }
 
-/// One resolved epoch: the post state, and the per-account rows the frame builder reuses.
+/// One resolved epoch: the post state plus the rows the frame builder reuses.
 pub struct EpochOutcome {
     pub post: TreeState,
     /// Touched aids ascending, with each post leaf (`None` = pruned/never present).
     pub steps: Vec<([u8; 32], Option<[u8; 32]>)>,
-    /// The prior rows fed to the engine, in the same touched order.
+    /// Prior rows fed to the engine, in the same touched order.
     pub prior_rows: Vec<(st::Account, st::RiskInputs)>,
-    /// Ids of the new positions the open pre-pass processed (opened ++ rejected).
+    /// Ids the open pre-pass processed (opened ++ rejected).
     pub processed_open_ids: Vec<[u8; 32]>,
 }
 
-/// Resolve one epoch over `prior`: the same Stage-3 pipeline the guest runs —
-/// openLock pre-pass, per-account settle/re-mark/resolve — carried onto a fresh
-/// `TreeState`. Touches every present account plus every open party; an extra
-/// touch whose leaf ends unchanged is harmless (the guest's own rule).
+/// Resolve one epoch — the same Stage-3 pipeline the guest runs: openLock pre-pass,
+/// then per-account settle/re-mark/resolve. Touches every present account plus every
+/// open party; an extra touch whose leaf ends unchanged is harmless (the guest's rule).
 pub fn resolve_epoch(
     prior: &TreeState,
     inputs: &EpochInputs,
@@ -127,7 +119,6 @@ pub fn resolve_epoch(
 ) -> Result<EpochOutcome> {
     use std::collections::BTreeSet;
 
-    // The touched set: every present account + both parties of every new position.
     let mut touched: BTreeSet<[u8; 32]> = prior.accounts.keys().copied().collect();
     let mut owners: BTreeMap<[u8; 32], [u8; 20]> =
         prior.accounts.iter().map(|(k, v)| (*k, v.owner)).collect();
@@ -140,8 +131,7 @@ pub fn resolve_epoch(
     }
     let touched: Vec<[u8; 32]> = touched.into_iter().collect();
 
-    // Prior rows in touched order: the committed leaf fields + the per-account risk
-    // witness (positions, and the epoch's marks/twaps that bind to them).
+    // Prior rows in touched order: leaf fields + the per-account risk witness.
     let mut rows: Vec<(st::Account, st::RiskInputs)> = Vec::with_capacity(touched.len());
     for aid in &touched {
         let (account, risk) = match prior.accounts.get(aid) {
@@ -200,11 +190,10 @@ pub fn resolve_epoch(
     // Whole-epoch marking gate: any touched account carries a proven hourly mark.
     let marking_epoch = rows.iter().any(|(_, ri)| !ri.proven_marks.is_empty());
 
-    // The PRIOR rows, before the open pre-pass mutates them — the frame builder feeds
-    // these to the guest, which re-runs the pre-pass itself.
+    // Snapshot BEFORE the open pre-pass mutates rows — the guest re-runs the pre-pass itself.
     let prior_rows = rows.clone();
 
-    // Stage 3b: the openLock pre-pass — authenticate, surface, push both mirrored records.
+    // Stage 3b: the openLock pre-pass.
     let outcome = sr::apply_new_boxes_to_book(&mut rows, &inputs.new_positions, inputs.proof_now);
     let mut processed: Vec<[u8; 32]> = outcome.opened.clone();
     processed.extend(outcome.rejected.iter().copied());
@@ -258,8 +247,7 @@ pub fn resolve_epoch(
     Ok(EpochOutcome { post, steps, prior_rows, processed_open_ids: processed })
 }
 
-/// Rebuild the whole tree from the chain history: start empty, replay every fold,
-/// assert the recomputed roots equal each fold's committed roots.
+/// Rebuild from empty, replaying every fold and asserting its committed roots.
 pub fn rebuild(history: &ChainHistory, table: &sr::ScenarioTable) -> Result<TreeState> {
     let mut state = TreeState::default();
     let opens_by_id: BTreeMap<[u8; 32], &OpenRecord> =
@@ -289,7 +277,7 @@ pub fn rebuild(history: &ChainHistory, table: &sr::ScenarioTable) -> Result<Tree
 
         let outcome = resolve_epoch(&state, &inputs, table)?;
 
-        // The open pre-pass must have processed exactly the ids the fold surfaced.
+        // The pre-pass must have processed exactly the ids the fold surfaced.
         let mut got = outcome.processed_open_ids.clone();
         let mut want = fold.pv.opened_position_ids.clone();
         got.sort_unstable();
@@ -320,7 +308,7 @@ pub fn rebuild(history: &ChainHistory, table: &sr::ScenarioTable) -> Result<Tree
     Ok(state)
 }
 
-/// Recover one historical fold's epoch inputs from its committed public values.
+/// Recover one fold's epoch inputs from its committed public values.
 fn fold_inputs(
     fold: &FoldRecord,
     opens_by_id: &BTreeMap<[u8; 32], &OpenRecord>,

@@ -1,5 +1,5 @@
 {
-  "_comment": "Live lane presets — chain-verified pins for the scenario-ES generation. Reads (root/accountsRoot/scenarioRoot) answer on the LENS; the core answers imVkey()/DOMAIN() and takes applyState. RPC_URL in the environment overrides rpc_url.",
+  "_comment": "Chain-verified pins, scenario-ES generation. Reads answer on the LENS; the core answers imVkey()/DOMAIN() and takes applyState. RPC_URL overrides rpc_url.",
   "lanes": [
     {
       "name": "celo",

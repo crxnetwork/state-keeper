@@ -1,22 +1,9 @@
-//! state-keeper — the public one-step keeper.
-//!
-//! Three verbs, one step per invocation, no loop:
-//!
-//!   state-keeper rebuild [--chain celo]
-//!       Replay the chain's events into the state tree and diff the recomputed root
-//!       against the root the contract holds. Read-only; needs only an RPC.
-//!
-//!   state-keeper advance [--chain celo]
-//!       Rebuild, assemble the next epoch from chain-only inputs, prove it on the
-//!       Succinct Prover Network with YOUR key, and submit `applyState`. If the root
-//!       moves mid-flight (another keeper advanced first) the step rebases and retries.
-//!
-//!   state-keeper verify [--chain celo]
-//!       Read the current on-chain roots and pins, and check the committed artifacts
-//!       against them.
-//!
-//! Configuration: `.env` (RPC_URL, PRIVATE_KEY, NETWORK_PRIVATE_KEY) + the committed
-//! `chains.json` lane presets. Secrets arrive ONLY via the environment.
+//! state-keeper — the public one-step keeper. Three verbs, one step per invocation,
+//! no loop: `rebuild` (replay events, diff the root; read-only), `advance` (build one
+//! epoch, prove on the Succinct Prover Network with YOUR key, submit `applyState`,
+//! rebasing if the root moves mid-flight), `verify` (check the committed artifacts
+//! against the on-chain pins). Config: `.env` (RPC_URL, PRIVATE_KEY,
+//! NETWORK_PRIVATE_KEY) + `chains.json`; secrets arrive ONLY via the environment.
 
 mod chain;
 mod submit;
@@ -41,8 +28,7 @@ fn env_nonempty(key: &str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.trim().is_empty())
 }
 
-/// Load `.env` from the working directory into the process env (no external crate;
-/// simple KEY=VALUE lines, `#` comments). Existing env vars win.
+/// Load `.env` (simple KEY=VALUE, `#` comments). Existing env vars win.
 fn load_dotenv() {
     let Ok(raw) = std::fs::read_to_string(".env") else { return };
     for line in raw.lines() {
@@ -186,8 +172,8 @@ async fn cmd_verify(chain_name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Assemble the next epoch's chain-only inputs: unfolded opens, fresh bound marks,
-/// due settle prices, the current pause set.
+/// The next epoch's chain-only inputs: unfolded opens, fresh bound marks, due settle
+/// prices, the current pause set.
 fn fresh_epoch_inputs(
     history: &ChainHistory,
     state: &TreeState,
@@ -200,7 +186,7 @@ fn fresh_epoch_inputs(
         .map(|o| crx_tree::replay::open_to_new_position(o, domain))
         .collect::<Result<Vec<_>>>()?;
 
-    // Latest bound price per feed that is FRESH as an hourly mark at `now`.
+    // Latest bound price per feed, FRESH as an hourly mark at `now`.
     use std::collections::BTreeMap;
     let mut latest: BTreeMap<[u8; 32], &crx_tree::scan::TwapBoundRecord> = BTreeMap::new();
     for t in &history.twaps {
@@ -220,7 +206,7 @@ fn fresh_epoch_inputs(
         })
         .collect();
 
-    // Settle prices: any bound price whose close_time equals an open position's expiry.
+    // Settle prices: bound prices whose close_time equals an open position's expiry.
     let expiries: std::collections::BTreeSet<(u64, [u8; 20])> = state
         .accounts
         .values()
@@ -271,7 +257,7 @@ async fn cmd_advance(chain_name: &str) -> Result<()> {
         let (history, state) = scan_and_rebuild(&ctx, &provider).await?;
         let root = state.root();
         if root != chain.root {
-            // The chain may have advanced between the read and the scan — one rescan handles it.
+            // The chain may have advanced between the read and the scan — rescan.
             tracing::warn!(
                 "rebuilt root 0x{} != chain root 0x{} (attempt {attempt}) — rescanning",
                 hex::encode(root),
@@ -301,9 +287,8 @@ async fn cmd_advance(chain_name: &str) -> Result<()> {
         }
         println!("advance: 0x{} → 0x{}", hex::encode(adv.root_prev), hex::encode(adv.predicted_root));
 
-        // FREE equivalence gate: a CPU execute of the identical guest on the identical
-        // stdin. Confirms the witness set is satisfiable and the committed root equals
-        // the prediction BEFORE any prover fee is spent.
+        // FREE equivalence gate: CPU-execute the identical guest on the identical
+        // stdin; the committed root must equal the prediction BEFORE any fee is spent.
         println!("executing the guest on CPU (free equivalence gate)…");
         let frames = adv.frames.clone();
         let pv_exec = tokio::task::spawn_blocking(move || prove_exec::execute(&frames))
@@ -320,7 +305,6 @@ async fn cmd_advance(chain_name: &str) -> Result<()> {
         println!("execute OK: guest commits root_new 0x{}", hex::encode(decoded.roots.root_new));
         println!("scenario root committed by the guest: 0x{}", hex::encode(decoded.scenario_root));
 
-        // The real proof, on the Succinct Prover Network, with the user's own key.
         println!("proving (Groth16, Succinct Prover Network)…");
         let frames = adv.frames.clone();
         let (proof_bytes, public_values) =
@@ -329,8 +313,7 @@ async fn cmd_advance(chain_name: &str) -> Result<()> {
                 .context("join prove")??;
         println!("proof: {} bytes; public values: {} bytes", proof_bytes.len(), public_values.len());
 
-        // Rebase check just before broadcast: if the private keeper advanced while we
-        // proved, this proof's CAS target is stale — rescan and retry.
+        // If another keeper advanced while we proved, the CAS target is stale — rebase.
         let fresh = read_chain(&provider, &ctx.lane).await?;
         if fresh.root != adv.root_prev {
             tracing::warn!(

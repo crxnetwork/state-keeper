@@ -32,11 +32,11 @@ pub struct Lane {
     pub core: String,
     pub lens: String,
     pub deploy_block: u64,
-    /// The scenario-ES generation vkey the core must answer on `imVkey()`.
+    /// The vkey the core must answer on `imVkey()`.
     pub vkey: String,
-    /// The owner-published scenario-table commitment the committed artifact must reproduce.
+    /// The owner-published commitment the committed table must reproduce.
     pub scenario_root: String,
-    /// A public RPC endpoint; `RPC_URL` overrides it.
+    /// Public RPC endpoint; `RPC_URL` overrides it.
     pub rpc_url: String,
 }
 
@@ -45,8 +45,7 @@ struct ChainsFile {
     lanes: Vec<Lane>,
 }
 
-/// Load a lane preset by name from `chains.json` (looked up beside the executable's
-/// workspace: `./chains.json`, then `../chains.json`).
+/// Load a lane preset by name from `chains.json` (searched upward from cwd).
 pub fn load_lane(name: &str) -> Result<Lane> {
     let candidates = ["chains.json", "../chains.json", "../../chains.json"];
     let raw = candidates
@@ -70,7 +69,7 @@ pub fn parse_b32(s: &str) -> Result<[u8; 32]> {
     v.try_into().map_err(|_| anyhow!("bytes32 {s}: wrong length"))
 }
 
-/// The current chain truth of one lane, read through the lens (the core reverts the getters).
+/// One lane's chain truth, read through the lens (the core reverts the getters).
 pub struct ChainState {
     pub root: [u8; 32],
     pub root_at: u64,

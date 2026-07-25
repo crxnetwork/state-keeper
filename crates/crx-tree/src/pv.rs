@@ -1,11 +1,6 @@
 //! The 15-row public-values schema — byte-for-byte the guest's committed
 //! `PublicValuesStruct` (mirrored on-chain in `Types.sol`). Field TYPES and ORDER are
 //! VKEY-AFFECTING: a mismatch decodes every later field from the wrong ABI offset.
-//!
-//! `decode_public_values` is the full decode: every row surfaces, because the replay
-//! consumes them all — `openedPositionIds` names the opens folded in an epoch,
-//! `consumedMarks`/`consumedTwaps` name the prices, `novations`/`closeoutNovations`/
-//! `unwinds` the lifecycle moves.
 
 use anyhow::Result;
 use alloy::sol;
@@ -20,14 +15,14 @@ sol! {
         bytes32 accountsRootPrev;
         bytes32 accountsRootNew;
     }
-    /// One under-margin claim — the guest names it; the on-chain grace gate decides the cut.
+    /// One under-margin claim — the guest names it, the on-chain grace gate decides.
     struct DefaultSol {
         bytes32 id;
         address accountOwner;
         address counterparty;
         uint128 usd;
     }
-    /// One consumed proven settle price, asserted == `boundTwap[feedId][closeTime]`.
+    /// One consumed settle price, asserted == `boundTwap[feedId][closeTime]`.
     struct ConsumedTwapSol {
         bytes32 feedId;
         uint64  closeTime;
@@ -66,12 +61,12 @@ sol! {
         bytes32 domainSeparator;
         uint128 mAAuthorized;
     }
-    /// One held position: a due position skipped on pause grounds.
+    /// One due position skipped on pause grounds.
     struct PausedHoldSol {
         bytes32 marketKey;
         bytes32 positionId;
     }
-    /// One consumed proven hourly mark, asserted == `boundTwap[feedId][markTime]` on-chain.
+    /// One consumed hourly mark, asserted == `boundTwap[feedId][markTime]`.
     struct ConsumedMarkSol {
         bytes32 feedId;
         uint64  markTime;
@@ -100,8 +95,8 @@ sol! {
         uint64  nonce;
         uint64  deadline;
     }
-    /// The FINAL 15-row state public values (the guest commits `pv.abi_encode()`; the
-    /// chain and this crate decode the same struct). Field order is VKEY-AFFECTING.
+    /// The FINAL 15-row public values (the guest commits `pv.abi_encode()`). Field
+    /// order is VKEY-AFFECTING.
     struct PublicValuesStruct {
         RootsSol roots;                          // 1
         DefaultSol[] defaults;                   // 2
@@ -121,7 +116,7 @@ sol! {
     }
 }
 
-/// The fully-decoded public values of one fold, in the vendored engine's native types.
+/// One fold's decoded public values, in the vendored engine's native types.
 #[derive(Clone)]
 pub struct DecodedPv {
     pub roots: st::Roots,
@@ -133,7 +128,7 @@ pub struct DecodedPv {
     pub scenario_root: [u8; 32],
     pub consumed_marks: Vec<st::ConsumedMark>,
     pub opened_position_ids: Vec<[u8; 32]>,
-    /// Non-empty rows this replay does not model yet — fail loudly, never silently drift.
+    /// Rows this replay does not model yet — non-empty fails loudly, never drifts.
     pub closeout_novations_len: usize,
     pub unwinds_len: usize,
     pub defaults_len: usize,

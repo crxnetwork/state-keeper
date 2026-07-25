@@ -1,19 +1,11 @@
-//! The 13-frame guest stdin for one advance — the exact read order of the scenario-ES
-//! guest (`sp1_zkvm::io::read::<T>()` deserialises positionally under bincode):
-//!
-//!   0  book                : TouchedBook = (root_prev, accounts_root_prev, Vec<TouchedAccount>)
-//!   1  marks               : Vec<Mark>            (proof-clock gate only; empty here)
-//!   2  paused_pairs        : Vec<[u8;32]>
-//!   3  novations           : Vec<Novation>        (EMPTY on this path)
-//!   4  new_positions       : Vec<NewPosition>
-//!   5  novation_witnesses  : Vec<NovationWitness> (EMPTY)
-//!   6  closeout_novations          : Vec<CloseoutNovation>        (EMPTY)
-//!   7  closeout_novation_witnesses : Vec<CloseoutNovationWitness> (EMPTY)
-//!   8  proof_now           : u64
-//!   9  domain_separator    : [u8;32]
-//!   10 scenario_table      : ScenarioTable (keccak-committed as PV row 10)
-//!   11 unwinds             : Vec<Unwind>          (EMPTY)
-//!   12 unwind_witnesses    : Vec<UnwindWitness>   (EMPTY)
+//! The 13-frame guest stdin for one advance — the guest's EXACT read order
+//! (`sp1_zkvm::io::read::<T>()` deserialises positionally under bincode):
+//!   0 book (root_prev, accounts_root_prev, Vec<TouchedAccount>) · 1 marks (empty
+//!   here) · 2 paused_pairs · 3 novations (EMPTY) · 4 new_positions ·
+//!   5 novation_witnesses (EMPTY) · 6 closeout_novations (EMPTY) ·
+//!   7 closeout_novation_witnesses (EMPTY) · 8 proof_now · 9 domain_separator ·
+//!   10 scenario_table (keccak-committed as PV row 10) · 11 unwinds (EMPTY) ·
+//!   12 unwind_witnesses (EMPTY)
 
 use anyhow::{bail, Result};
 use im_recompute as sr;
@@ -21,7 +13,7 @@ use im_types as st;
 
 use crate::replay::{resolve_epoch, EpochInputs, TreeState};
 
-/// The assembled advance: the 13 encoded frames plus the predicted advance.
+/// The 13 encoded frames plus the predicted advance.
 pub struct AdvanceFrames {
     pub frames: Vec<Vec<u8>>,
     pub predicted_root: [u8; 32],
@@ -29,15 +21,15 @@ pub struct AdvanceFrames {
     pub root_prev: [u8; 32],
 }
 
-/// Build the 13 frames for one epoch over `state`. `state.root()` must equal the root
-/// the chain holds (the caller has already diffed it) — it becomes the CAS target.
+/// Build the 13 frames for one epoch. `state.root()` must equal the root the chain
+/// holds — it becomes the CAS target.
 pub fn build_advance_frames(
     state: &TreeState,
     inputs: &EpochInputs,
     table: &sr::ScenarioTable,
     chain_accounts_root: [u8; 32],
 ) -> Result<AdvanceFrames> {
-    // Fail-closed table gate: validate + commit BEFORE any prediction.
+    // Fail-closed table gate BEFORE any prediction.
     let _root = table.scenario_root();
 
     let prior = state.leaves();
@@ -47,9 +39,8 @@ pub fn build_advance_frames(
 
     let outcome = resolve_epoch(state, inputs, table)?;
 
-    // Step the state + registry trees sequentially, one witness per touched path.
-    // An absent-and-finally-absent account is dropped — a `None → None` step the guest
-    // rejects as a no-op.
+    // One witness per touched path; an absent-and-finally-absent account is dropped —
+    // the guest rejects a `None → None` step as a no-op.
     let mut smt = im_state::smt2::Smt2::from_leaves(&prior);
     let reg_leaf = sr::registry_leaf();
     let mut registry = im_state::smt2::Smt2::new();
@@ -117,7 +108,6 @@ pub fn build_advance_frames(
 }
 
 fn enc<T: serde::Serialize>(val: &T) -> Result<Vec<u8>> {
-    // sp1_zkvm::io::read::<T>() deserialises with bincode; this encoder MUST stay
-    // byte-compatible with the guest's read calls.
+    // MUST stay byte-compatible with the guest's bincode reads.
     bincode::serialize(val).map_err(|e| anyhow::anyhow!("bincode: {e}"))
 }

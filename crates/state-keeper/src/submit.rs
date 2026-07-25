@@ -1,8 +1,6 @@
-//! The broadcast path: a signer-backed `applyState(proof, publicValues)` to the core.
-//!
-//! `eth_estimateGas` runs first — a lost CAS race reverts there as `StaleRoot()`,
-//! before a nonce is spent, and the caller rebases and retries. A mempool duplicate
-//! (`-32000 already known`) is SUCCESS: the tx is already held and will mine.
+//! Broadcast `applyState(proof, publicValues)`. `eth_estimateGas` runs first — a lost
+//! CAS race reverts there as `StaleRoot()` before a nonce is spent, and the caller
+//! rebases. A mempool duplicate (`already known`) is SUCCESS: the tx will mine.
 
 use alloy::network::EthereumWallet;
 use alloy::primitives::{Address, Bytes};
@@ -91,7 +89,7 @@ pub async fn submit_apply_state(
     Ok(SubmitOutcome::Mined(format!("{tx_hash:#x}")))
 }
 
-// alloy re-exports its own `Url`; name it locally so the import reads plainly.
+// alloy's re-exported `Url`, named locally.
 mod reqwest_url {
     pub use alloy::transports::http::reqwest::Url;
 }

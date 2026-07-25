@@ -1,7 +1,6 @@
-//! The chain scan: fetch every load-bearing event from `deploy_block` to head, then
-//! enrich — each `RootAdvanced` with its `applyState` calldata (the fold's public
-//! values), each `TermsOpened` with the emitting `openLock` calldata (the two
-//! signatures the guest recovers).
+//! Chain scan: fetch every load-bearing event from `deploy_block` to head, enriching
+//! `RootAdvanced` with its `applyState` calldata and `TermsOpened` with the emitting
+//! `openLock` calldata (the two signatures the guest recovers).
 
 use alloy::consensus::Transaction as _;
 use alloy::eips::BlockNumberOrTag;
@@ -19,9 +18,8 @@ sol! {
     function applyState(bytes proof, bytes publicValues);
 }
 
-/// One open, fully recovered from the chain: the signed Terms (event body) plus both
-/// signatures (calldata). `id` is re-derived from the Terms and asserted equal to the
-/// event's — the decode authenticates itself.
+/// One open: signed Terms (event body) plus both sigs (calldata). `id` is re-derived
+/// and asserted equal to the event's — the decode authenticates itself.
 #[derive(Clone)]
 pub struct OpenRecord {
     pub id: [u8; 32],
@@ -31,7 +29,7 @@ pub struct OpenRecord {
     pub block: u64,
 }
 
-/// One fold: the decoded public values of a mined `applyState`.
+/// One fold: decoded public values of a mined `applyState`.
 #[derive(Clone)]
 pub struct FoldRecord {
     pub block: u64,
@@ -39,7 +37,7 @@ pub struct FoldRecord {
     pub pv: DecodedPv,
 }
 
-/// One proven price bound to the write-once rail.
+/// One proven price on the write-once rail.
 #[derive(Clone, Copy)]
 pub struct TwapBoundRecord {
     pub feed_id: [u8; 32],
@@ -70,7 +68,7 @@ pub struct ChainHistory {
 }
 
 impl ChainHistory {
-    /// The paused pairTag set as of `block` (inclusive), replayed from `MarketSet` history.
+    /// Paused pairTags as of `block` (inclusive), replayed from `MarketSet` history.
     pub fn paused_pairs_at(&self, block: u64) -> Vec<[u8; 32]> {
         use std::collections::BTreeMap;
         let mut state: BTreeMap<[u8; 32], bool> = BTreeMap::new();
@@ -80,7 +78,7 @@ impl ChainHistory {
         state.into_iter().filter_map(|(tag, paused)| paused.then_some(tag)).collect()
     }
 
-    /// Every open id already consumed by a fold (surfaced in `openedPositionIds`).
+    /// Open ids already consumed by a fold (`openedPositionIds`).
     pub fn folded_open_ids(&self) -> std::collections::BTreeSet<[u8; 32]> {
         self.folds
             .iter()
@@ -88,7 +86,7 @@ impl ChainHistory {
             .collect()
     }
 
-    /// Opens the chain holds that no fold has consumed yet — the next epoch's `new_positions`.
+    /// Opens no fold has consumed yet — the next epoch's `new_positions`.
     pub fn unfolded_opens(&self) -> Vec<&OpenRecord> {
         let folded = self.folded_open_ids();
         self.opens.iter().filter(|o| !folded.contains(&o.id)).collect()
@@ -98,7 +96,7 @@ impl ChainHistory {
 /// Max block span per `eth_getLogs` (public endpoints commonly cap at 100k).
 const LOG_CHUNK: u64 = 90_000;
 
-/// Scan the core's logs from `deploy_block` to head and enrich them into a `ChainHistory`.
+/// Scan the core's logs and enrich them into a `ChainHistory`.
 pub async fn scan<P: Provider>(provider: &P, core: Address, deploy_block: u64) -> Result<ChainHistory> {
     let head = provider.get_block_number().await.context("get_block_number")?;
     let topics = Topics::new();
@@ -179,15 +177,14 @@ pub async fn scan<P: Provider>(provider: &P, core: Address, deploy_block: u64) -
                 paused: ev.data.paused,
             });
         }
-        // `Bound` rides in the same tx as `TermsOpened`; the Terms body is the richer record.
+        // `Bound` rides in the same tx as `TermsOpened`, which is the richer record.
     }
 
     Ok(ChainHistory { opens, folds, twaps, market_sets, head })
 }
 
-/// Recover the two 65-byte signatures from the open's calldata. Tries the top-level
-/// `openLock` first; a wrapped open (e.g. a Safe transaction) is searched for the
-/// embedded `openLock` selector and decoded from there.
+/// Recover the two 65-byte sigs from the open's calldata: top-level `openLock` first,
+/// else a wrapped open (e.g. Safe) is scanned for the embedded selector.
 async fn open_sigs<P: Provider>(
     provider: &P,
     tx_hash: B256,
@@ -205,7 +202,6 @@ async fn open_sigs<P: Provider>(
             return Ok((sig_a, sig_b));
         }
     }
-    // Wrapped open: scan for the openLock selector inside the calldata.
     let selector = crate::events::openLockCall::SELECTOR;
     for at in 0..input.len().saturating_sub(4) {
         if input[at..at + 4] == selector {

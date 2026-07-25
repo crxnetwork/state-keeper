@@ -1,12 +1,8 @@
-//! The guest ELF is NOT rebuilt here. It is the PROVEN, VENDORED artifact at
-//! `elf/scenario-es-program` — sha256
-//!   6068e927e1d962783b9b144efd36395ac013f65011e1a1ba567858e735b1ccaa
-//! whose vkey is the scenario-ES generation
-//!   0x005283d662917901042cc66534ede1c3ee827fb129293f70239d745485d85a8e
-//! (derived with `cargo prove vkey --elf` from these exact bytes; reproducible via
-//! SP1's `cargo prove build --docker`, image v6.3.0). Rebuilding the guest produces
-//! a DIFFERENT vkey and the chain rejects every proof — so this script verifies the
-//! sha256 and aborts on any drift.
+//! The guest ELF is NEVER rebuilt here — a rebuild changes the vkey and the chain
+//! rejects every proof. This script sha-guards the vendored `elf/scenario-es-program`
+//! (sha256 6068e927e1d962783b9b144efd36395ac013f65011e1a1ba567858e735b1ccaa, vkey
+//! 0x005283d662917901042cc66534ede1c3ee827fb129293f70239d745485d85a8e) and aborts on
+//! drift. Reproducible via SP1's `cargo prove build --docker`, image v6.3.0.
 
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -16,7 +12,6 @@ const EXPECTED_SHA256: &str = "6068e927e1d962783b9b144efd36395ac013f65011e1a1ba5
 fn main() {
     let manifest_dir =
         PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
-    // crates/prove-exec → ../../elf/scenario-es-program
     let elf_path = manifest_dir
         .parent()
         .and_then(|p| p.parent())
