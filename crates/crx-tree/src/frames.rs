@@ -1,5 +1,7 @@
 //! The 13-frame guest stdin for one advance — the guest's EXACT read order
-//! (`sp1_zkvm::io::read::<T>()` deserialises positionally under bincode):
+//! (`sp1_zkvm::io::read::<T>()` deserialises positionally under bincode).
+//! enforced by: a_noop_epoch_builds_thirteen_frames_and_predicts_the_prior_root, plus the
+//! advance's free-execute gate (guest: main — must commit the predicted root).
 //!   0 book (root_prev, accounts_root_prev, Vec<TouchedAccount>) · 1 marks (empty
 //!   here) · 2 paused_pairs · 3 novations (EMPTY) · 4 new_positions ·
 //!   5 novation_witnesses (EMPTY) · 6 closeout_novations (EMPTY) ·
@@ -100,6 +102,7 @@ pub fn build_advance_frames(
 }
 
 fn enc<T: serde::Serialize>(val: &T) -> Result<Vec<u8>> {
-    // MUST stay byte-compatible with the guest's bincode reads.
+    // MUST stay byte-compatible with the guest's bincode reads (guest: sp1_zkvm::io::read).
+    // enforced by: cmd_advance's free-execute gate — a drift diverges the committed root.
     bincode::serialize(val).map_err(|e| anyhow::anyhow!("bincode: {e}"))
 }

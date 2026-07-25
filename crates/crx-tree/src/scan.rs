@@ -64,6 +64,7 @@ pub struct ChainHistory {
 
 impl ChainHistory {
     /// Paused pairTags as of `block` (inclusive), replayed from `MarketSet` history.
+    /// enforced by: paused_pairs_replays_last_write_and_answers_sorted
     pub fn paused_pairs_at(&self, block: u64) -> Vec<[u8; 32]> {
         use std::collections::BTreeMap;
         let mut state: BTreeMap<[u8; 32], bool> = BTreeMap::new();
@@ -94,7 +95,7 @@ pub async fn scan<P: Provider>(provider: &P, core: Address, deploy_block: u64) -
     let mut logs: Vec<Log> = Vec::new();
     let mut lo = deploy_block;
     while lo <= head {
-        let hi = (lo + LOG_CHUNK - 1).min(head);
+        let hi = lo.saturating_add(LOG_CHUNK - 1).min(head);
         let filter = Filter::new()
             .address(core)
             .from_block(BlockNumberOrTag::Number(lo))
@@ -105,7 +106,8 @@ pub async fn scan<P: Provider>(provider: &P, core: Address, deploy_block: u64) -
             .await
             .with_context(|| format!("get_logs [{lo}, {hi}]"))?;
         logs.extend(chunk);
-        lo = hi + 1;
+        let Some(next) = hi.checked_add(1) else { break };
+        lo = next;
     }
     logs.sort_by_key(|l| (l.block_number.unwrap_or(0), l.log_index.unwrap_or(0)));
 
@@ -193,8 +195,8 @@ async fn open_sigs<P: Provider>(
         }
     }
     let selector = crate::events::openLockCall::SELECTOR;
-    for at in 0..input.len().saturating_sub(4) {
-        if input[at..at + 4] == selector {
+    for (at, window) in input.windows(4).enumerate() {
+        if window == selector {
             if let Some((t, sig_a, sig_b)) = terms_from_open_calldata(&input[at..]) {
                 if events::terms_rfq_id(&t) == expect_id {
                     return Ok((sig_a, sig_b));
@@ -206,4 +208,33 @@ async fn open_sigs<P: Provider>(
         "open tx {tx_hash}: could not recover openLock signatures for id 0x{} from calldata",
         hex::encode(expect_id)
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn set(block: u64, tag: u8, enabled: bool, paused: bool) -> MarketSetRecord {
+        MarketSetRecord { block, log_index: 0, instrument: 1, pair_tag: [tag; 32], enabled, paused }
+    }
+
+    #[test]
+    fn paused_pairs_replays_last_write_and_answers_sorted() {
+        let h = ChainHistory {
+            opens: vec![],
+            folds: vec![],
+            twaps: vec![],
+            market_sets: vec![
+                set(10, 2, true, true),  // paused at 10
+                set(11, 1, true, true),  // paused at 11
+                set(12, 2, true, false), // unpaused at 12 — last write wins
+                set(13, 3, false, true), // paused but disabled — never counts
+                set(14, 4, true, true),  // beyond a block-13 cutoff — invisible there
+            ],
+            head: 20,
+        };
+        assert_eq!(h.paused_pairs_at(11), vec![[1u8; 32], [2u8; 32]], "sorted by tag");
+        assert_eq!(h.paused_pairs_at(13), vec![[1u8; 32]], "unpause and disable both clear");
+        assert_eq!(h.paused_pairs_at(20), vec![[1u8; 32], [4u8; 32]], "later pause appears");
+    }
 }

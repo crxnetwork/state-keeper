@@ -1,7 +1,11 @@
 //! state-keeper — the public one-step keeper: `rebuild` / `advance` / `verify`, one step per
 //! invocation, no loop. Secrets arrive ONLY via the environment (`.env` + `chains.json`).
 
+#![forbid(unsafe_code)]
+#![deny(clippy::arithmetic_side_effects)]
+
 mod chain;
+mod gate;
 mod submit;
 
 use alloy::providers::{Provider, ProviderBuilder};
@@ -55,12 +59,11 @@ fn build_ctx(chain_name: &str) -> Result<Ctx> {
     let (table, table_root) = crx_tree::load_scenario_table(table_path)?;
     let expect = parse_b32(&lane.scenario_root)?;
     if table_root != expect {
-        bail!(
-            "scenario table root mismatch: data/scenario-table.bin commits 0x{}, chains.json pins 0x{} — \
-             the core would reject every proof built on this table",
-            hex::encode(table_root),
-            hex::encode(expect)
-        );
+        return Err(gate::Gate::TableArtifactNotThisGeneration {
+            local: hex::encode(table_root),
+            pinned: hex::encode(expect),
+        }
+        .into());
     }
     Ok(Ctx { lane, rpc_url, table, table_root })
 }
@@ -130,13 +133,13 @@ async fn cmd_rebuild(chain_name: &str) -> Result<()> {
     println!("on-chain scenarioRoot: 0x{}", hex::encode(chain.scenario_root));
 
     if root != chain.root {
-        bail!("REBUILD MISMATCH: the replayed tree does not reproduce the on-chain root");
+        return Err(gate::Gate::RebuildRootMismatch.into());
     }
     if accounts_root != chain.accounts_root {
-        bail!("REBUILD MISMATCH: the replayed registry does not reproduce the on-chain accountsRoot");
+        return Err(gate::Gate::RebuildRegistryMismatch.into());
     }
     if ctx.table_root != chain.scenario_root {
-        bail!("scenario table mismatch against the on-chain scenarioRoot");
+        return Err(gate::Gate::RebuildScenarioRootMismatch.into());
     }
     println!("MATCH — the tree the contract holds is exactly the fold of its own events.");
     Ok(())
@@ -159,10 +162,10 @@ async fn cmd_verify(chain_name: &str) -> Result<()> {
 
     let pinned = parse_b32(&ctx.lane.vkey)?;
     if chain.vkey != pinned {
-        bail!("the core answers a DIFFERENT vkey than this build is pinned to — do not advance");
+        return Err(gate::Gate::VerifyVkeyDrift.into());
     }
     if ctx.table_root != chain.scenario_root {
-        bail!("the committed scenario table does not match the on-chain scenarioRoot");
+        return Err(gate::Gate::VerifyScenarioRootDrift.into());
     }
     println!("OK — vkey and scenario root both match the pins.");
     Ok(())
@@ -233,8 +236,7 @@ fn fresh_epoch_inputs(
 
 async fn cmd_advance(chain_name: &str) -> Result<()> {
     let ctx = build_ctx(chain_name)?;
-    let signer_key = env_nonempty("PRIVATE_KEY")
-        .ok_or_else(|| anyhow!("PRIVATE_KEY is not set — the advance signs a real transaction"))?;
+    let signer_key = env_nonempty("PRIVATE_KEY").ok_or(gate::Gate::PrivateKeyUnset)?;
     let provider = ProviderBuilder::new().connect_http(ctx.rpc_url.parse()?);
     let core_addr = parse_addr(&ctx.lane.core)?;
 
@@ -243,10 +245,14 @@ async fn cmd_advance(chain_name: &str) -> Result<()> {
         let chain = read_chain(&provider, &ctx.lane).await?;
         let pinned_vkey = parse_b32(&ctx.lane.vkey)?;
         if chain.vkey != pinned_vkey {
-            bail!("core vkey 0x{} != pinned {} — wrong generation, refusing", hex::encode(chain.vkey), ctx.lane.vkey);
+            return Err(gate::Gate::AdvanceWrongGeneration {
+                chain: hex::encode(chain.vkey),
+                pinned: ctx.lane.vkey.clone(),
+            }
+            .into());
         }
         if ctx.table_root != chain.scenario_root {
-            bail!("scenario table does not match the on-chain scenarioRoot — refusing to prove");
+            return Err(gate::Gate::AdvanceScenarioRootDrift.into());
         }
 
         let (history, state) = scan_and_rebuild(&ctx, &provider).await?;

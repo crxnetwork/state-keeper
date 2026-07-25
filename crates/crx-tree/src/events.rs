@@ -47,7 +47,8 @@ sol! {
     event MarketSet(uint8 indexed instrument, bytes32 indexed pairTag, bool enabled, bool paused, uint8 volGroup, uint8 concCat);
 }
 
-/// MIRROR of the on-chain `Rfq.TYPEHASH`; welded by the test below.
+/// MIRROR of the on-chain `Rfq.sol::TYPEHASH` (deployed generation).
+/// enforced by: terms_typehash_matches_the_signature_string
 pub const TERMS_TYPEHASH: B256 =
     b256!("0x41aa73c5b957e9b7ac0f62e276c3d71b35cfec660f61675e6fb16835e3465fe4");
 
@@ -66,7 +67,9 @@ fn u64_word(v: u64) -> [u8; 32] {
     w
 }
 
-/// Recompute `Rfq.id(t)` — the EIP-712 struct hash. Must equal the `TermsOpened` id or the caller refuses.
+/// Recompute the EIP-712 struct hash (solidity: `Rfq.sol::id`, deployed generation).
+/// Must equal the `TermsOpened` id or the caller refuses.
+/// enforced by: recorded_celo_events_rebuild_to_the_committed_roots (re-derives live ids)
 pub fn terms_rfq_id(t: &OpenLockTerms) -> [u8; 32] {
     let mut buf = Vec::with_capacity(17 * 32);
     buf.extend_from_slice(TERMS_TYPEHASH.as_slice());
@@ -112,6 +115,12 @@ pub struct Topics {
     pub root_advanced: B256,
     pub twap_bound: B256,
     pub market_set: B256,
+}
+
+impl Default for Topics {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Topics {

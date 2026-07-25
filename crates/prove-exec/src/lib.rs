@@ -1,6 +1,9 @@
 //! SP1 surface: network Groth16 prove + free CPU execute of the vendored guest ELF
 //! (sha256 `6068e927…ccaa`, vkey `0x005283d6…5a8e`; build.rs refuses drifted bytes).
 
+#![forbid(unsafe_code)]
+#![deny(clippy::arithmetic_side_effects)]
+
 use sp1_sdk::{
     blocking::{ProveRequest, Prover, ProverClient},
     include_elf, HashableKey, ProvingKey, SP1Stdin,

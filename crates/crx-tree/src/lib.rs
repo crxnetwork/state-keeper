@@ -1,6 +1,9 @@
 //! crx-tree — rebuild the CRX state tree purely from on-chain events and assemble the next
 //! epoch's guest input. One leaf per account: `{aid, vm_equity, positions_root}`.
 
+#![forbid(unsafe_code)]
+#![deny(clippy::arithmetic_side_effects)]
+
 pub mod events;
 pub mod frames;
 pub mod pv;

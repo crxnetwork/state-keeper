@@ -52,7 +52,7 @@ fn sha256_hex(data: &[u8]) -> String {
         child.stdin.take()?.write_all(data).ok()?;
         let out = child.wait_with_output().ok()?;
         if out.status.success() {
-            Some(String::from_utf8(out.stdout).ok()?.trim().split_whitespace().next()?.to_string())
+            Some(String::from_utf8(out.stdout).ok()?.split_whitespace().next()?.to_string())
         } else {
             None
         }

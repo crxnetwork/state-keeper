@@ -1,6 +1,8 @@
 //! The 15-row public-values schema — byte-for-byte the guest's committed
-//! `PublicValuesStruct` (mirrored on-chain in `Types.sol`). Field TYPES and ORDER are
-//! VKEY-AFFECTING: a mismatch decodes every later field from the wrong ABI offset.
+//! `PublicValuesStruct` (solidity: `Types.sol::PublicValuesStruct`, deployed generation).
+//! Field TYPES and ORDER are VKEY-AFFECTING: a mismatch decodes every later field from
+//! the wrong ABI offset.
+//! enforced by: recorded_celo_events_rebuild_to_the_committed_roots (decodes live fold calldata)
 
 use anyhow::Result;
 use alloy::sol;
@@ -91,6 +93,7 @@ sol! {
         uint64  deadline;
     }
     /// The guest commits `pv.abi_encode()` of this. Field order is VKEY-AFFECTING.
+    /// solidity: Types.sol::PublicValuesStruct (deployed generation) · guest: PublicValuesStruct
     struct PublicValuesStruct {
         RootsSol roots;                          // 1
         DefaultSol[] defaults;                   // 2

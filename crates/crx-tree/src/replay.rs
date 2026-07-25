@@ -246,8 +246,7 @@ pub fn rebuild(history: &ChainHistory, table: &sr::ScenarioTable) -> Result<Tree
     let opens_by_id: BTreeMap<[u8; 32], &OpenRecord> =
         history.opens.iter().map(|o| (o.id, o)).collect();
 
-    for (i, fold) in history.folds.iter().enumerate() {
-        let n = i + 1;
+    for (fold, n) in history.folds.iter().zip(1usize..) {
         let inputs = fold_inputs(fold, &opens_by_id, history)?;
         if table.scenario_root() != fold.pv.scenario_root {
             bail!(
