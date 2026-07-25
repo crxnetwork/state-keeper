@@ -70,6 +70,7 @@ sol! {
 pub const TERMS_TYPEHASH: B256 =
     b256!("0x41aa73c5b957e9b7ac0f62e276c3d71b35cfec660f61675e6fb16835e3465fe4");
 
+#[cfg(test)]
 const TERMS_TYPE_STRING: &str = "Terms(address partyA,address partyB,address oracle,bytes32 pairTag,uint256 quantity,uint16 imBpsA,uint16 imBpsB,uint16 mmPct,uint40 expiry,uint64 nonce,uint64 cureWindow,uint8 payoutPrefA,uint8 payoutPrefB,bytes data,uint8 instrument,int8 side)";
 
 fn addr_word(a: Address) -> [u8; 32] {

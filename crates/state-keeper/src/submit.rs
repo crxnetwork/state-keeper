@@ -6,7 +6,7 @@
 
 use alloy::network::EthereumWallet;
 use alloy::primitives::{Address, Bytes};
-use alloy::providers::{Provider, ProviderBuilder};
+use alloy::providers::ProviderBuilder;
 use alloy::signers::local::PrivateKeySigner;
 use anyhow::{anyhow, Result};
 use std::str::FromStr;
