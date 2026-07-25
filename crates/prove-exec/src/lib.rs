@@ -39,23 +39,27 @@ pub fn execute(frames: &[Vec<u8>]) -> anyhow::Result<Vec<u8>> {
     Ok(public_values.as_slice().to_vec())
 }
 
-/// Groth16 prove on the Succinct Prover Network. Requires `NETWORK_PRIVATE_KEY`
-/// (a funded requester key). Returns `(proof_bytes, public_values)` — exactly the
-/// two `bytes` arguments `applyState` takes.
+/// Groth16 prove on the Succinct Prover Network — the ONLY prover this binary knows.
+/// There is no local proving path: `mock`, `cpu`, `cuda`, or any other `SP1_PROVER`
+/// value is refused outright. Requires `NETWORK_PRIVATE_KEY` (a funded requester key).
+/// Returns `(proof_bytes, public_values)` — exactly the two `bytes` arguments
+/// `applyState` takes.
 pub fn prove_network(frames: &[Vec<u8>]) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
-    let mode = std::env::var("SP1_PROVER").unwrap_or_else(|_| "network".to_string());
-    if mode == "mock" {
-        anyhow::bail!("SP1_PROVER=mock is not permitted — real Groth16 proofs only");
+    if let Ok(mode) = std::env::var("SP1_PROVER") {
+        if mode != "network" {
+            anyhow::bail!(
+                "SP1_PROVER={mode} is not permitted — the Succinct Prover Network is the only \
+                 prover here. Unset SP1_PROVER or set SP1_PROVER=network."
+            );
+        }
     }
-    if mode == "cpu" {
+    if std::env::var("NETWORK_PRIVATE_KEY").map(|v| v.trim().is_empty()).unwrap_or(true) {
         anyhow::bail!(
-            "CPU proving is disabled: the Groth16 wrap needs ~32 GB. Use SP1_PROVER=network."
+            "NETWORK_PRIVATE_KEY is not set — network proving needs a funded Succinct \
+             requester key (https://docs.succinct.xyz/)"
         );
     }
-    if mode == "network" && std::env::var("NETWORK_PRIVATE_KEY").is_err() {
-        anyhow::bail!("SP1_PROVER=network requires NETWORK_PRIVATE_KEY");
-    }
-    std::env::set_var("SP1_PROVER", &mode);
+    std::env::set_var("SP1_PROVER", "network");
 
     let client = ProverClient::from_env();
     let pk = client.setup(ELF).map_err(|e| anyhow::anyhow!("setup: {e}"))?;

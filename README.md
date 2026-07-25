@@ -41,7 +41,9 @@ bound marks, due settlements), assembles the guest's 13-frame stdin, and then:
 
 1. **executes the guest on CPU** — free — and refuses to spend anything unless the
    committed root moves and matches the host's own prediction;
-2. **proves on the Succinct Prover Network** with *your* `NETWORK_PRIVATE_KEY`;
+2. **proves on the Succinct Prover Network** with *your* `NETWORK_PRIVATE_KEY` — the
+   network is the *only* prover: there is no local (`cpu`/`cuda`) or `mock` proving
+   path in this binary, and a missing key is a clean error before any spend;
 3. **submits `applyState(proof, publicValues)`** signed with *your* `PRIVATE_KEY`.
 
 If another keeper advances the root mid-flight, the step detects it (a `StaleRoot`
