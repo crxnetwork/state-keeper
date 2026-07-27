@@ -14,6 +14,7 @@ Pins — vkey `0x005283d662917901042cc66534ede1c3ee827fb129293f70239d745485d85a8
 guest ELF `elf/scenario-es-program` sha256 `6068e927e1d962783b9b144efd36395ac013f65011e1a1ba567858e735b1ccaa`,
 **never rebuilt here** (build.rs sha-guards it; reproduce with SP1 `cargo prove build --docker`, image v6.3.0);
 `data/scenario-table.bin` must keccak to the on-chain `scenarioRoot` or the CLI refuses. Lane presets live in `chains.json`.
+The margin model is HS-VaR 99%/5d; the vendored table still carries the retired ES99/2d form until the next vkey rotation.
 
 Rules — the Succinct Prover Network is the *only* prover, with your `NETWORK_PRIVATE_KEY`;
 `applyState` is permissionless, signed with your `PRIVATE_KEY`; if another keeper lands first, the step rebases and retries.
