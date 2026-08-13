@@ -1,7 +1,7 @@
 //! Scenario-ES calibration: the fixed-point scale constants and the two scenario-table bounds.
 //! The ISDA IM v2.8 ρ-form calibration (risk weights, correlations, concentration thresholds, the currency
 //! classifier and the `uint8` selector wire) was DELETED in the scenario-matrix ES99 migration — margin now
-//! derives from a published scenario table (`im-recompute::scenario`), not from an ISDA quadratic form.
+//! derives from a published scenario table (`crxvm::scenario`), not from an ISDA quadratic form.
 //! Every constant here is vkey-affecting; do not retune blind. Returns and bounds are 1e18 fixed-point.
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]

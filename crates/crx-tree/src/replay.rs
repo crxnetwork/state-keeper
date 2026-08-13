@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::{anyhow, bail, Result};
-use im_recompute as sr;
+use crxvm as sr;
 use im_types as st;
 
 use crate::scan::{ChainHistory, FoldRecord, OpenRecord};

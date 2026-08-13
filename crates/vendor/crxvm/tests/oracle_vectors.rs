@@ -10,7 +10,7 @@
 //! lists sparse `(symbol, return_1e18)` entries; `fallback` is the adverse return parameter; `pushed_ims`
 //! parallels `book`. Symbols map to `[u8; 32]` market keys by keccak — any injective map preserves the math.
 
-use im_recompute::{keccak, party_scenario_es, PositionRecord, ScenarioTable};
+use crxvm::{keccak, party_scenario_es, PositionRecord, ScenarioTable};
 use serde_json::Value;
 
 fn mk(symbol: &str) -> [u8; 32] {

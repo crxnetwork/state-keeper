@@ -12,7 +12,7 @@ use alloy::providers::{Provider, ProviderBuilder};
 use anyhow::{anyhow, bail, Context, Result};
 use crx_tree::replay::{EpochInputs, TreeState};
 use crx_tree::scan::ChainHistory;
-use im_recompute as sr;
+use crxvm as sr;
 use im_types as st;
 
 use chain::{load_lane, parse_addr, parse_b32, read_chain, Lane};

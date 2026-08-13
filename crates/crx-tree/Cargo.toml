@@ -11,7 +11,7 @@ workspace = true
 [dependencies]
 im-types = { path = "../vendor/im-types" }
 im-state = { path = "../vendor/im-state" }
-im-recompute = { path = "../vendor/im-recompute" }
+crxvm = { path = "../vendor/crxvm" }
 alloy = { workspace = true }
 serde = { workspace = true }
 hex = { workspace = true }

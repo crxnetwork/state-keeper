@@ -1,5 +1,5 @@
 [package]
-name = "im-recompute"
+name = "crxvm"
 version = "0.0.0"
 edition = "2021"
 
@@ -7,7 +7,7 @@ edition = "2021"
 # library crate, above all five leaves (`im-calibration`, `im-types`, `im-math`, `im-crypto`,
 # `im-state`). It owns `im_full`, `recompute`, the box-binding guards, transfer/novation/failover,
 # the EIP-712/`Terms`/domain hashers, `market_key`/`pair_tag_of`, and `signed_price`. The umbrella crate
-# `crx-im` is a thin `pub use im_recompute::*;` re-export.
+# `crx-im` is a thin `pub use crxvm::*;` re-export.
 #
 # tiny-keccak/k256 (signed_price.rs) pinned as plain crates.io deps (not git) for reproducible guest builds (the guest patch reaches them graph-wide).
 [dependencies]

@@ -1,4 +1,4 @@
-//! im-recompute — the zk-IM margin / settlement / lifecycle orchestrator. Deterministic, fail-closed; the
+//! crxvm — the zk-IM margin / settlement / lifecycle orchestrator. Deterministic, fail-closed; the
 //! committed public-values struct is the proof's only output.
 //!
 //! The pipeline is the module order, so the crate root reads top-to-bottom as the proof: every touched account's

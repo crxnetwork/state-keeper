@@ -10,7 +10,7 @@
 //!   12 unwind_witnesses (EMPTY)
 
 use anyhow::{bail, Result};
-use im_recompute as sr;
+use crxvm as sr;
 use im_types as st;
 
 use crate::replay::{resolve_epoch, EpochInputs, TreeState};

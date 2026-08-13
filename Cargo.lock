@@ -2436,11 +2436,27 @@ dependencies = [
  "alloy",
  "anyhow",
  "bincode",
+ "crxvm",
  "hex",
- "im-recompute",
  "im-state",
  "im-types",
  "serde",
+ "tiny-keccak",
+]
+
+[[package]]
+name = "crxvm"
+version = "0.0.0"
+dependencies = [
+ "im-calibration",
+ "im-crypto",
+ "im-math",
+ "im-state",
+ "im-types",
+ "k256",
+ "proptest",
+ "serde",
+ "serde_json",
  "tiny-keccak",
 ]
 
@@ -3745,22 +3761,6 @@ dependencies = [
  "im-calibration",
  "im-types",
  "proptest",
-]
-
-[[package]]
-name = "im-recompute"
-version = "0.0.0"
-dependencies = [
- "im-calibration",
- "im-crypto",
- "im-math",
- "im-state",
- "im-types",
- "k256",
- "proptest",
- "serde",
- "serde_json",
- "tiny-keccak",
 ]
 
 [[package]]
@@ -7347,8 +7347,8 @@ dependencies = [
  "alloy",
  "anyhow",
  "crx-tree",
+ "crxvm",
  "hex",
- "im-recompute",
  "im-types",
  "prove-exec",
  "serde",

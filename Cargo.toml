@@ -10,7 +10,7 @@ members = [
     "crates/vendor/im-types",
     "crates/vendor/im-crypto",
     "crates/vendor/im-state",
-    "crates/vendor/im-recompute",
+    "crates/vendor/crxvm",
 ]
 resolver = "2"
 
