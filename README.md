@@ -19,6 +19,6 @@ The margin model is HVaR 99%/5d; the vendored table still carries the retired ES
 Rules — the Succinct Prover Network is the *only* prover, with your `NETWORK_PRIVATE_KEY`;
 `applyState` is permissionless, signed with your `PRIVATE_KEY`; if another keeper lands first, the step rebases and retries.
 
-Sync — any change to the guest framing, public-values layout, vkey, or scenario table lands here first; downstream bumps one pinned `rev`.
+Sync — any change to the guest frame layout, public-values layout, vkey, or scenario table lands here first; downstream bumps one pinned `rev`.
 
 MIT.
