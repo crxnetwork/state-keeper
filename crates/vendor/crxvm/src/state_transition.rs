@@ -703,7 +703,7 @@ mod tests {
     }
 
     /// The headline: an unwind that empties the (A,B) set retires BOTH mirrored seats, emits ONE loser→winner
-    /// residual, and — the margin-return fix — emits zero-valued `imRequired[A][B]` AND `[B][A]` rows so the till
+    /// residual, and emits zero-valued `imRequired[A][B]` AND `[B][A]` rows so the till
     /// clears the stale requirement. A and B each keep a surviving position facing C, so both leaves stay live.
     #[test]
     fn unwind_empties_ab_set_retires_both_and_emits_zero_im_rows() {
@@ -816,7 +816,7 @@ mod tests {
         assert_eq!(out.settlements[0].id, a1.terms_id, "tagged with the torn-up leg's id");
     }
 
-    /// SOUNDNESS BLOCKER (the party_b-touched fix): a SINGLE-SIDED unwind — only A is a touched account, B's mirror
+    /// SOUNDNESS: a SINGLE-SIDED unwind — only A is a touched account, B's mirror
     /// seat is left untouched and LIVE — must be REJECTED. Otherwise A's seat retires while B's identical-`terms_id`
     /// seat survives in B's unchanged leaf, yet the emptied-set loop still emits `imRequired[B][A]=0` → B could
     /// withdraw all its collateral off a still-live position. The guest forces B's mirror seat into the fold.

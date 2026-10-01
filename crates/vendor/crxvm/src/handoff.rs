@@ -471,8 +471,8 @@ mod tests {
         assert_eq!(r.pnl, -80_000, "rescaled mark 1_000_000 reproduces the expo=-6 pnl");
         assert_eq!(r.shortfall, 50_000, "rescaled mark ⇒ identical conservation as expo=-6");
         assert_eq!(r.entry.handoff_mark, 100_000, "handoff_mark is the raw native price for the on-chain re-assert");
-        let buggy_pnl = position_vm(w.a_position.entry_rate, 100_000, w.a_position.notional, w.a_position.side);
-        assert_eq!(buggy_pnl, -980_000, "raw 100_000 mark is 10×+ off — the bug this fix kills");
-        assert_ne!(r.pnl, buggy_pnl, "rescaled and raw marks diverge 10×");
+        let raw_pnl = position_vm(w.a_position.entry_rate, 100_000, w.a_position.notional, w.a_position.side);
+        assert_eq!(raw_pnl, -980_000, "the raw 100_000 mark is 10×+ off");
+        assert_ne!(r.pnl, raw_pnl, "rescaled and raw marks diverge 10×");
     }
 }

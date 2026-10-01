@@ -155,8 +155,8 @@ mod tests {
         let notional: u128 = (i128::MAX as u128) + 10;
         let side: i8 = 1;
         let move_ = (settle_price as i128) - (entry_rate as i128);
-        let old_style = (notional as i128).saturating_mul(move_).saturating_div(entry_rate as i128);
-        assert!(old_style < 0, "documents the old sign-flip bug (as-i128 wrap turns a win negative)");
+        let wrapped = (notional as i128).saturating_mul(move_).saturating_div(entry_rate as i128);
+        assert!(wrapped < 0, "a plain as-i128 cast wraps and turns this win negative");
         assert!(position_vm(entry_rate, settle_price, notional, side) > 0, "long gains on an up-move — sign correct");
         assert!(position_vm(entry_rate, settle_price, notional, -1) < 0, "short loses on the same up-move");
     }
