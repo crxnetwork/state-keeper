@@ -6,8 +6,8 @@
 //! signature and DEFERS to the on-chain `opened[id]` re-assert — a mark set only by `openLock`, only after both parties
 //! verified, and consumed one-shot per folded id. `terms_id` excludes the signature, so that party's PARAMS stay pinned by
 //! the id anyway; empty is the ONLY sentinel, and any non-empty signature takes the full ECDSA check. `side_a` is the
-//! trailing `int8 side` field of the signed Terms (2.1, F-2 close): it threads into the `terms_id` recompute, so a
-//! flipped side no longer reproduces the signed id and the proof turns unsatisfiable; a polarity floor (±1 only)
+//! trailing `int8 side` field of the signed Terms (2.1): it threads into the `terms_id` recompute, so a
+//! flipped side does not reproduce the signed id and the proof turns unsatisfiable; a polarity floor (±1 only)
 //! remains as the last line of defense for a signed non-polar side. The mirror seat is `-side_a`.
 
 use crate::signed_price;
@@ -74,9 +74,9 @@ pub fn assert_new_position_bound(nb: &NewPosition) {
     // No static im_bps minimum: parties may sign ANY im_bps (pure scenario-ES margin). The signed
     // im_bps still sizes the seat's pushed_im, and book-level risk margin is the scenario-ES floor.
 
-    // F-2 (side_a authenticity — CLOSED in Terms 2.1): `side_a` is the trailing `int8 side` typehash field,
-    // threaded into the `terms_id` recompute above, so a flipped side no longer reproduces the signed id and the
-    // proof turns unsatisfiable. The polarity floor below is retained fail-closed — a signed non-polar side (0/2)
+    // F-2 (side_a authenticity): `side_a` is the trailing `int8 side` typehash field,
+    // threaded into the `terms_id` recompute above, so a flipped side does not reproduce the signed id and the
+    // proof turns unsatisfiable. The polarity floor below stays fail-closed — a signed non-polar side (0/2)
     // would still match the recompute, so reject any non-±1 side (a non-polar side breaks matched-principal netting).
     assert!(
         nb.side_a == 1 || nb.side_a == -1,
@@ -116,8 +116,8 @@ pub enum NewPositionLock {
 }
 
 /// Build a position's matched-principal seats: bind the signed terms, size each seat's party-signed `im_bps`
-/// IM, and mirror the two records. The ISDA √-concentration floor at open and the static `MIN_IM_BPS`
-/// minimum were DELETED in the scenario-ES migration — book-level risk margin now comes from the
+/// IM, and mirror the two records. There is no concentration floor at open and no static `MIN_IM_BPS`
+/// minimum: book-level risk margin comes from the
 /// scenario-ES `imRequirements` emitted every fold; the seat lock is exactly what the parties signed.
 pub fn apply_new_position(nb: &NewPosition) -> NewPositionLock {
     assert_new_position_bound(nb);
@@ -279,7 +279,7 @@ mod tests {
     #[test]
     fn new_position_bind_accepts_both_polar_sides() {
         // Terms 2.1: side is signed into the id, so each side is its OWN signed position (you cannot flip
-        // side_a on a fixed id — that is exactly the forgery the bind now rejects).
+        // side_a on a fixed id — that is exactly the forgery the bind rejects).
         assert_new_position_bound(&signed_new_position(1));
         assert_new_position_bound(&signed_new_position(-1));
     }
@@ -304,7 +304,7 @@ mod tests {
             ("recomputed Rfq.id(Terms) != claimed terms_id", |nb| nb.im_bps_a = 0),
             ("recomputed Rfq.id(Terms) != claimed terms_id", |nb| nb.terms_id[0] ^= 0xFF),
             ("entry_rate != first word of signed data", |nb| nb.entry_rate += 1),
-            // F-2 (Terms 2.1): a flipped side no longer reproduces the signed id — the circuit rejects it.
+            // F-2: a flipped side does not reproduce the signed id — the circuit rejects it.
             ("recomputed Rfq.id(Terms) != claimed terms_id", |nb| nb.side_a = -nb.side_a),
             ("sigB does not recover partyB", |nb| {
                 let stranger = SigningKey::from_bytes(&[0x44u8; 32].into()).unwrap();
@@ -344,7 +344,7 @@ mod tests {
                 payout_pref_a: 0, payout_pref_b: 0, data,
                 sig_a: nb_sign(&nb_sk_a(), &digest), sig_b: nb_sign(&nb_sk_b(), &digest), domain_separator }
         };
-        // The static MIN_IM_BPS floor was REMOVED (pure scenario-ES margin): any party-signed
+        // No static MIN_IM_BPS floor (pure scenario-ES margin): any party-signed
         // im_bps binds, down to 1 bp. Risk coverage comes from the scenario-ES imRequirements.
         assert_new_position_bound(&build(781, 781));
         assert_new_position_bound(&build(1, 1));

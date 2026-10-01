@@ -1,6 +1,5 @@
 //! Pure wide-math kernels for the scenario-ES margin: U256 exact products, directed /ONE folds, isqrt.
-//! The ISDA IM ρ-form kernels (quadratic-form aggregation, concentration CR/f_kl) were DELETED in the
-//! scenario-matrix ES99 migration; what remains is the scale-agnostic arithmetic the ES kernel builds on.
+//! This is the scale-agnostic arithmetic the ES kernel builds on.
 //! SCALE. Everything is 1e18 fixed-point (`ONE`). No 1e6 anywhere — token-decimal conversion happens outside
 //! this crate. Every function here is vkey-affecting.
 //! ROUNDING. `mul_div_one` floors; `mul_div_one_ceil` is that product rounded up and is what a margin

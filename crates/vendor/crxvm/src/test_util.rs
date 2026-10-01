@@ -5,8 +5,8 @@ use crate::*;
 
 use k256::ecdsa::{signature::hazmat::PrehashSigner, RecoveryId, Signature as K256Sig, SigningKey};
 
-/// Fixture seat IM, in bps — the RETIRED static protocol floor's old value (781), kept only so the
-/// reference fixtures' pushed_im figures stay byte-stable. There is NO protocol minimum any more.
+/// Fixture seat IM, in bps (781). It keeps the reference fixtures' pushed_im figures byte-stable.
+/// There is NO protocol minimum.
 pub(crate) const TEST_SEAT_IM_BPS: u16 = 781;
 
 pub(crate) fn empty_ri() -> RiskInputs {

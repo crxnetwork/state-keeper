@@ -45,8 +45,7 @@ pub struct Mark {
     pub publish_time: u64,
 }
 
-/// Per-account risk/settlement witness (FX-forward only). The ISDA sensitivity vectors (`deltas`, `vegas`,
-/// `curvatures`, `corr_matrix`, `fx_meta`) were DELETED in the scenario-ES migration — margin derives ONLY
+/// Per-account risk/settlement witness (FX-forward only). Margin derives ONLY
 /// from the bound positions against the committed scenario table.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct RiskInputs {

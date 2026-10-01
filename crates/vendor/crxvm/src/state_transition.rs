@@ -819,7 +819,7 @@ mod tests {
     /// SOUNDNESS BLOCKER (the party_b-touched fix): a SINGLE-SIDED unwind — only A is a touched account, B's mirror
     /// seat is left untouched and LIVE — must be REJECTED. Otherwise A's seat retires while B's identical-`terms_id`
     /// seat survives in B's unchanged leaf, yet the emptied-set loop still emits `imRequired[B][A]=0` → B could
-    /// withdraw all its collateral off a still-live position. The guest now forces B's mirror seat into the fold.
+    /// withdraw all its collateral off a still-live position. The guest forces B's mirror seat into the fold.
     #[test]
     #[should_panic(expected = "B is not a touched account")]
     fn unwind_single_sided_without_b_touched_is_rejected() {

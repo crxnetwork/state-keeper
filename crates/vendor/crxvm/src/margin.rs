@@ -1,7 +1,6 @@
 //! Margin over bound positions: realized residual (`position_vm`), the per-party scenario-ES floor, and the
 //! per-counterparty requirement rows. The scenario-matrix ES99 kernel is `scenario::party_scenario_es`; this
-//! module is its application to a party's book. The ISDA ρ-form kernels (`im_full`, the FX-delta quadratic
-//! form, the concentration floor) were DELETED in the scenario-ES migration.
+//! module is its application to a party's book.
 //!
 //! Units. Notionals, pushed IM and every returned margin are 1e6 collateral minor; scenario returns are 1e18.
 //!
@@ -78,7 +77,7 @@ mod tests {
 
     #[test]
     fn netting_release_offsetting_book_margins_to_net_es() {
-        // Pure scenario-ES margin (the static MIN_IM_BPS floor was REMOVED): a fully-offsetting
+        // Pure scenario-ES margin (no static MIN_IM_BPS floor): a fully-offsetting
         // same-market same-counterparty book nets to ZERO, its scenario ES is zero, and with
         // near-zero party-signed seat IM the margin is ≈ 0 BY DESIGN — bilateral netting released.
         let t = test_table();

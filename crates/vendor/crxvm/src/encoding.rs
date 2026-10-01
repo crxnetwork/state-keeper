@@ -217,10 +217,10 @@ mod tests {
         let id_inst = terms_id(&nb.party_a, &nb.party_b, &nb.oracle, &nb.pair_tag, nb.quantity,
             nb.im_bps_a, nb.im_bps_b, nb.mm_pct, nb.expiry, nb.nonce, nb.cure_window, nb.payout_pref_a, nb.payout_pref_b, &nb.data, nb.instrument + 1, nb.side_a);
         assert_ne!(id_inst, nb.terms_id, "instrument is bound into the id");
-        // F-2 (Terms 2.1): side is now a named typehash field — perturbing it must change the id.
+        // F-2: side is a named typehash field — perturbing it must change the id.
         let id_side = terms_id(&nb.party_a, &nb.party_b, &nb.oracle, &nb.pair_tag, nb.quantity,
             nb.im_bps_a, nb.im_bps_b, nb.mm_pct, nb.expiry, nb.nonce, nb.cure_window, nb.payout_pref_a, nb.payout_pref_b, &nb.data, nb.instrument, -nb.side_a);
-        assert_ne!(id_side, nb.terms_id, "side is bound into the id (Terms 2.1, F-2 close)");
+        assert_ne!(id_side, nb.terms_id, "side is bound into the id (Terms 2.1, F-2)");
         let id_pref = terms_id(&nb.party_a, &nb.party_b, &nb.oracle, &nb.pair_tag, nb.quantity,
             nb.im_bps_a, nb.im_bps_b, nb.mm_pct, nb.expiry, nb.nonce, nb.cure_window, nb.payout_pref_a + 1, nb.payout_pref_b, &nb.data, nb.instrument, nb.side_a);
         assert_ne!(id_pref, nb.terms_id, "payoutPrefA is bound into the id (Terms 2.0)");

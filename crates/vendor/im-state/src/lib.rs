@@ -1,7 +1,6 @@
 //! smt2 (prefix-compacted keyed keccak tree) plus the two deterministic leaf-set → root builders.
 //! KEY-BOUND. The registry stamps ONE constant value (`registry_leaf()`) at every present key; smt2's
-//! `H_leaf = keccak(0x00‖key‖value)` folds the key in, so that constant can no longer alias across keys —
-//! under the old positional hashing a single-entry registry rooted to the same bytes whatever its key.
+//! `H_leaf = keccak(0x00‖key‖value)` folds the key in, so that constant cannot alias across keys.
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
